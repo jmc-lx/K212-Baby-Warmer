@@ -1,0 +1,107 @@
+C51 COMPILER V9.60.0.0   BUZ                                                               09/19/2026 06:38:02 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE BUZ
+OBJECT MODULE PLACED IN .\Output\buz.obj
+COMPILER INVOKED BY: D:\Keil_51\C51\BIN\C51.EXE buz.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Inc;.\User) DEBUG PRINT(.\L
+                    -ist\buz.lst) TABS(2) OBJECT(.\Output\buz.obj)
+
+line level    source
+
+   1          #include "Config.h"
+   2          
+   3          
+   4          
+   5          
+   6          
+   7          
+   8          
+   9           uchar xdata   Buz_Start_Time;
+  10           uchar xdata    Buz_Stop_Time;
+  11           uchar xdata   Buz_Ring_Count;
+  12           uchar xdata    Buz_Run_Time;
+  13           uchar xdata    Buz_Begin_b;          //蜂鸣器开始响标志
+  14          // uchar xdata   buz_lead_p;
+  15          
+  16          
+  17          
+  18          /****************************************************************/
+  19          //函数名：void Buz_Start( unsigned int Start_Time, unsigned int Stop_Time, unsigned char Ring_Count)
+  20          //功  能：蜂鸣器启动函数
+  21          //参  数：空
+  22          //返回值：无
+  23          /****************************************************************/
+  24          void Buz_Start(uchar  Start_Time, uchar Stop_Time, uchar Ring_Count)
+  25          {
+  26   1        
+  27   1        
+  28   1        Buz_Start_Time = Start_Time;
+  29   1        Buz_Stop_Time = Stop_Time;
+  30   1        Buz_Ring_Count = Ring_Count;
+  31   1        Buz_Run_Time = 0;
+  32   1        if(Buz_Ring_Count){
+  33   2          Buz_Begin_b = 1;
+  34   2        }
+  35   1      
+  36   1      }
+  37          
+  38          /****************************************************************/
+  39          //函数名：Buz_Stop(void)
+  40          //功  能：蜂鸣器停止函数
+  41          //参  数：空
+  42          //返回值：无
+  43          /****************************************************************/
+  44          void Buz_Stop(void)
+  45          {
+  46   1        
+  47   1        //如果还没响完
+  48   1        if(Buz_Ring_Count){
+  49   2          Buz_Run_Time++;
+  50   2          if(Buz_Begin_b==1){
+  51   3            if(Buz_Run_Time >= Buz_Start_Time){
+  52   4              Buz_Begin_b=0;
+  53   4              Buz_Run_Time=0;
+  54   4              Buz_Ring_Count--;
+C51 COMPILER V9.60.0.0   BUZ                                                               09/19/2026 06:38:02 PAGE 2   
+
+  55   4            }
+  56   3          }
+  57   2      
+  58   2          else{
+  59   3            if(Buz_Run_Time >= Buz_Stop_Time){
+  60   4              Buz_Begin_b = 1;
+  61   4              Buz_Run_Time = 0;
+  62   4            }
+  63   3          } 
+  64   2        }
+  65   1        else{
+  66   2              
+  67   2          Buz_Begin_b=0;
+  68   2          buz_lead_p=1;
+  69   2          
+  70   2        }
+  71   1      }
+  72          
+  73          
+  74          
+  75          
+  76          
+  77          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    100    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      5    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

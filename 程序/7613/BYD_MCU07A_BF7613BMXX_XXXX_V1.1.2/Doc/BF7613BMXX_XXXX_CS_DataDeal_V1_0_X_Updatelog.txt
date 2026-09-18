@@ -1,0 +1,9 @@
+/****************************************************/
+BF7613BMXX_XXXX_CS_DataDeal_V1.0.X
+更新日期：2021-11-02
+1)BF7613BMXX_XXXX_CS_DataDeal_V1.0.0--初版,Memory Model为Small模式。
+2)BF7613BMXX_XXXX_CS_DataDeal_V1.0.1--初版,Memory Model为Large模式。
+BF7613BMXX_XXXX_CS_DataDeal_V1.0
+更新日期：2021-02-03
+1)BF7613BMXX_XXXX_CS_DataDeal_V1.0--初版
+/****************************************************/

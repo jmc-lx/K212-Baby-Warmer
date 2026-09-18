@@ -1,0 +1,820 @@
+C51 COMPILER V9.60.0.0   FUN                                                               09/19/2026 06:38:02 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE FUN
+OBJECT MODULE PLACED IN .\Output\fun.obj
+COMPILER INVOKED BY: D:\Keil_51\C51\BIN\C51.EXE fun.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Inc;.\User) DEBUG PRINT(.\L
+                    -ist\fun.lst) TABS(2) OBJECT(.\Output\fun.obj)
+
+line level    source
+
+   1          #include "Config.h"
+   2          
+   3          
+   4          //#define ZhuFei  0x01
+   5          //#define ChuLv   0x02
+   6          //#define DunZhu  0x04
+   7          //#define YuYue   0x08
+   8          //#define TiaoNai 0x10
+   9          //#define ReTiao  0x20
+  10          //#define HuaCha  0x40
+  11          //#define WenHuo  0x80
+  12          uchar xdata r_cook_step;
+  13          uint xdata change_time;
+  14          uint xdata Warm_Cnt;
+  15          uint xdata Fun_Time;
+  16          //uint xdata ChuLv_Time;
+  17          uchar xdata start_time_b;//开始倒计时标志位
+  18          uchar xdata JiaXian_b;
+  19          uchar xdata warm_jiaxian_time;
+  20          uchar xdata ChuLv_daojishi;
+  21          uchar xdata frist_baowen_temp;
+  22          uchar xdata baowen_jieduan;
+  23          uchar xdata gaoyuan_No;
+  24          uint xdata Warm_long_time;
+  25          
+  26          #define High_water 1
+  27          #define Low_water  0
+  28          
+  29          void fun(void)
+  30          {
+  31   1      //  if(system_state!=Work_state&&system_state!=Warm_state)
+  32   1      //  {
+  33   1      //    
+  34   1      //  }
+  35   1        if(system_state!=Work_state)gaoyuan_b=0;
+  36   1        if(system_state==Work_state&&TiHu_b==0)
+  37   1        {
+  38   2          if(du_97==0)
+  39   2          GaoYuan_deal();
+  40   2          switch(Menu)
+  41   2          {
+  42   3            case ZhuFei:
+  43   3              switch(r_cook_step)
+  44   3              {
+  45   4                case 0:
+  46   4                  if(dsp_wendu>=100)
+  47   4                  {
+  48   5                    r_cook_step=1;
+  49   5                    change_time=0;
+  50   5                  }
+  51   4      //            if(gaoyuan_b)
+  52   4      //            Temp_gear=1;  
+  53   4      //            else
+  54   4                  Temp_gear=4;
+C51 COMPILER V9.60.0.0   FUN                                                               09/19/2026 06:38:02 PAGE 2   
+
+  55   4                  
+  56   4                  if(gaoyuan_b&&dsp_wendu<=94)
+  57   4                  {
+  58   5                      system_state=Warm_state;
+  59   5                      No_operation_Time=250;
+  60   5                      max_wendu=dsp_wendu;
+  61   5                      frist_baowen_temp=0;
+  62   5                      Warm_Cnt=4320;
+  63   5                      Fun_Time=0;
+  64   5                      du_97=0;
+  65   5                      Buz_Start(60,30,1);
+  66   5                      BaoWen_JiaXian_100=1;
+  67   5                      duibi_time2=0;
+  68   5                  }
+  69   4                break;
+  70   4                  
+  71   4                case 1:
+  72   4                  if(dsp_wendu>=100)
+  73   4                  {
+  74   5                    if(++change_time>Time_30S)
+  75   5                    {
+  76   6                      system_state=Warm_state;
+  77   6                      No_operation_Time=250;
+  78   6                      max_wendu=dsp_wendu;
+  79   6                      frist_baowen_temp=0;
+  80   6                      Warm_Cnt=4320;
+  81   6                      Fun_Time=0;
+  82   6                      du_97=0;
+  83   6                      Buz_Start(60,30,1);
+  84   6                      BaoWen_JiaXian_100=1;
+  85   6                      duibi_time2=0;
+  86   6                    }
+  87   5                  }
+  88   4                   if(gaoyuan_b&&dsp_wendu<=94)
+  89   4                  {
+  90   5                      system_state=Warm_state;
+  91   5                      No_operation_Time=250;
+  92   5                      max_wendu=dsp_wendu;
+  93   5                      frist_baowen_temp=0;
+  94   5                      Warm_Cnt=4320;
+  95   5                      Fun_Time=0;
+  96   5                      du_97=0;
+  97   5                      Buz_Start(60,30,1);
+  98   5                      BaoWen_JiaXian_100=1;
+  99   5                      duibi_time2=0;
+ 100   5                  }
+ 101   4                  if(dsp_wendu<95)
+ 102   4                  {
+ 103   5                    change_time=0;
+ 104   5                    r_cook_step=0;
+ 105   5                  }
+ 106   4      //            if(gaoyuan_b)
+ 107   4      //            Temp_gear=1;  
+ 108   4      //            else
+ 109   4                  Temp_gear=3;
+ 110   4                break;
+ 111   4              }
+ 112   3            break;
+ 113   3            
+ 114   3            case ChuLv:
+ 115   3              switch(r_cook_step)
+ 116   3              {
+C51 COMPILER V9.60.0.0   FUN                                                               09/19/2026 06:38:02 PAGE 3   
+
+ 117   4                case 0:
+ 118   4                  if(dsp_wendu>=100)
+ 119   4                  {
+ 120   5                    if(++change_time>Time_30S)
+ 121   5                    {
+ 122   6                    r_cook_step=1;
+ 123   6                    Fun_Time=0;
+ 124   6                    ChuLv_daojishi=1;
+ 125   6                    CL_Min=5;
+ 126   6                    CL_Sec=0;
+ 127   6                    }
+ 128   5                    Temp_gear=3;
+ 129   5                  }
+ 130   4                  else
+ 131   4                  Temp_gear=4;//全功率
+ 132   4                  
+ 133   4                  if(gaoyuan_b&&dsp_wendu<=94)
+ 134   4                  {
+ 135   5                    r_cook_step=1;
+ 136   5                    Fun_Time=0;
+ 137   5                    ChuLv_daojishi=1;
+ 138   5                    CL_Min=5;
+ 139   5                    CL_Sec=0;
+ 140   5                  }
+ 141   4                break;
+ 142   4                  
+ 143   4                case 1:
+ 144   4                    if(!CL_Sec&&!CL_Min)
+ 145   4                    {
+ 146   5                      system_state=Warm_state;
+ 147   5                      No_operation_Time=250;
+ 148   5                      frist_baowen_temp=0;
+ 149   5                      max_wendu=dsp_wendu;
+ 150   5                      Warm_Cnt=4320;
+ 151   5                      Fun_Time=0;
+ 152   5                      du_97=0;
+ 153   5                      Buz_Start(60,30,1);
+ 154   5                      BaoWen_JiaXian_100=1;
+ 155   5                      duibi_time2=0;
+ 156   5                    }
+ 157   4                    if(++Fun_Time>=Time_1S)
+ 158   4                    {
+ 159   5                      Fun_Time=0;
+ 160   5                      if(!CL_Sec)
+ 161   5                    {
+ 162   6                      CL_Sec=59;
+ 163   6                      CL_Min--;
+ 164   6                    }
+ 165   5                    else
+ 166   5                      CL_Sec--;
+ 167   5                    }
+ 168   4                  if(dsp_wendu<96&&gaoyuan_b==0)
+ 169   4                  {
+ 170   5                    ChuLv_daojishi=0;
+ 171   5                    change_time=0;
+ 172   5                    r_cook_step=0;
+ 173   5                  }
+ 174   4                  Temp_gear=2;//300w
+ 175   4              }
+ 176   3            break;
+ 177   3            
+ 178   3            case DunZhu:
+C51 COMPILER V9.60.0.0   FUN                                                               09/19/2026 06:38:02 PAGE 4   
+
+ 179   3            case HuaCha:
+ 180   3            case WenHuo:
+ 181   3              switch(r_cook_step)
+ 182   3              {
+ 183   4                case 0:
+ 184   4                  if(dsp_wendu>=95)
+ 185   4                  {
+ 186   5                    r_cook_step=1;
+ 187   5                    change_time=0;
+ 188   5                  }
+ 189   4      //            if(gaoyuan_b)
+ 190   4      //            Temp_gear=1;  
+ 191   4      //            else
+ 192   4                  Temp_gear=4;//全功率
+ 193   4                  
+ 194   4                  if(gaoyuan_b&&dsp_wendu<=94)
+ 195   4                  {
+ 196   5                    r_cook_step=2;
+ 197   5                    start_time_b=1;
+ 198   5                    Fun_Time=0;
+ 199   5                    feiteng_b=1;
+ 200   5                  }
+ 201   4                break;
+ 202   4                  
+ 203   4                case 1:
+ 204   4                  if(dsp_wendu>=100)
+ 205   4                  {
+ 206   5                    if(++change_time>Time_30S)
+ 207   5                    {
+ 208   6                    r_cook_step=2;
+ 209   6                    start_time_b=1;
+ 210   6                    Fun_Time=0;
+ 211   6                    feiteng_b=1;
+ 212   6                    }
+ 213   5                  }
+ 214   4                  if(gaoyuan_b&&dsp_wendu<=94)
+ 215   4                  {
+ 216   5                    r_cook_step=2;
+ 217   5                    start_time_b=1;
+ 218   5                    Fun_Time=0;
+ 219   5                    feiteng_b=1;
+ 220   5                  }
+ 221   4                  if(dsp_wendu<93)
+ 222   4                  {
+ 223   5                    r_cook_step=0;
+ 224   5                  }
+ 225   4      //            if(gaoyuan_b)
+ 226   4      //            Temp_gear=1;  
+ 227   4      //            else
+ 228   4                  Temp_gear=3;//400w
+ 229   4                break;
+ 230   4                  
+ 231   4                case 2:
+ 232   4                  gaoyuan_No=1;
+ 233   4                  dsp_way=dsp_time;
+ 234   4                if(dsp_wendu<=96)
+ 235   4                  Temp_gear=3;
+ 236   4                else if(dsp_wendu>=99)
+ 237   4                  Temp_gear=1;//100w
+ 238   4                break;
+ 239   4              }
+ 240   3            break;
+C51 COMPILER V9.60.0.0   FUN                                                               09/19/2026 06:38:02 PAGE 5   
+
+ 241   3            
+ 242   3            case TiaoNai:
+ 243   3            case ReTiao:
+ 244   3              start_time_b=1;
+ 245   3            if(dsp_wendu<=set_temp)
+ 246   3          {
+ 247   4            Fan_b=0;
+ 248   4            CLR_Fan;
+ 249   4          }
+ 250   3              if(adc_NTC_Temp<set_temp-7)
+ 251   3              {
+ 252   4                if(shuiwei_dangwei==High_water)
+ 253   4                  Temp_gear=4;
+ 254   4                else
+ 255   4                  Temp_gear=6;
+ 256   4                JiaXian_b=0;
+ 257   4                return;
+ 258   4              }
+ 259   3              else if(adc_NTC_Temp<set_temp-2)
+ 260   3              {
+ 261   4                if(shuiwei_dangwei==High_water)
+ 262   4                  Temp_gear=3;
+ 263   4                else
+ 264   4                  Temp_gear=5;
+ 265   4                JiaXian_b=0;
+ 266   4                return;
+ 267   4              }
+ 268   3              else if(adc_NTC_Temp<set_temp)
+ 269   3              {
+ 270   4                Temp_gear=5;
+ 271   4                if(adc_NTC_Temp<set_temp-3)
+ 272   4                {
+ 273   5                JiaXian_b=0;
+ 274   5                return;
+ 275   5                }
+ 276   4              }
+ 277   3              else if(adc_NTC_Temp>set_temp)
+ 278   3              {
+ 279   4                Temp_gear=0;
+ 280   4                CLR_Heat;
+ 281   4                if(adc_NTC_Temp>set_temp+3)
+ 282   4                {
+ 283   5                JiaXian_b=0;
+ 284   5                return;
+ 285   5                }
+ 286   4              }
+ 287   3               if(dsp_wendu==set_temp&&adc_NTC_Temp>=set_temp)
+ 288   3              {
+ 289   4                  JiaXian_b=1;
+ 290   4                  if(frist_baowen_temp==0)
+ 291   4                {
+ 292   5                  frist_baowen_temp=1;
+ 293   5                  key_buz_b=1;
+ 294   5                }
+ 295   4                  Temp_gear=0;
+ 296   4                  CLR_Heat;
+ 297   4              }
+ 298   3      //        else
+ 299   3      //        {
+ 300   3      //          warm_jiaxian_time=0;
+ 301   3      //        }
+ 302   3            break;
+C51 COMPILER V9.60.0.0   FUN                                                               09/19/2026 06:38:02 PAGE 6   
+
+ 303   3      
+ 304   3          }
+ 305   2        }
+ 306   1        else if(system_state==Warm_state&&TiHu_b==0)
+ 307   1        {
+ 308   2          //ShuiWei_deal();
+ 309   2          dsp_way=dsp_temp;
+ 310   2          if(dsp_wendu<=baowen_temp)
+ 311   2          {
+ 312   3            Fan_b=0;
+ 313   3            CLR_Fan;
+ 314   3          }
+ 315   2          if(adc_NTC_Temp<baowen_temp-7)
+ 316   2          {
+ 317   3            Warm_long_time=0;
+ 318   3            if(shuiwei_dangwei==High_water)
+ 319   3              Temp_gear=4;
+ 320   3            else
+ 321   3              Temp_gear=6;
+ 322   3            JiaXian_b=0;
+ 323   3            return;
+ 324   3          }
+ 325   2          else if(adc_NTC_Temp<baowen_temp-2)
+ 326   2          {
+ 327   3            Warm_long_time=0;
+ 328   3            if(shuiwei_dangwei==High_water)
+ 329   3              Temp_gear=3;
+ 330   3            else
+ 331   3              Temp_gear=5;
+ 332   3            JiaXian_b=0;
+ 333   3            return;
+ 334   3          }
+ 335   2          else if(adc_NTC_Temp<baowen_temp)
+ 336   2          {
+ 337   3            if(++Warm_long_time<=Time_30S)
+ 338   3              Temp_gear=5;
+ 339   3            else
+ 340   3              Temp_gear=2;
+ 341   3            if(adc_NTC_Temp<baowen_temp-3)
+ 342   3            {
+ 343   4            JiaXian_b=0;
+ 344   4            return;
+ 345   4            }
+ 346   3          }
+ 347   2          else if(adc_NTC_Temp>baowen_temp)
+ 348   2          {
+ 349   3            Warm_long_time=0;
+ 350   3            Temp_gear=0;
+ 351   3            CLR_Heat;
+ 352   3            if(adc_NTC_Temp>baowen_temp+3)
+ 353   3            {
+ 354   4            JiaXian_b=0;
+ 355   4            return;
+ 356   4            }
+ 357   3          }
+ 358   2           if(dsp_wendu==baowen_temp&&adc_NTC_Temp>=baowen_temp)
+ 359   2          {
+ 360   3      //      if(++warm_jiaxian_time>=Time_2S)
+ 361   3      //      {
+ 362   3              JiaXian_b=1;
+ 363   3            Warm_long_time=0;
+ 364   3                if(frist_baowen_temp==0)
+C51 COMPILER V9.60.0.0   FUN                                                               09/19/2026 06:38:02 PAGE 7   
+
+ 365   3              {
+ 366   4                frist_baowen_temp=1;
+ 367   4                key_buz_b=1;
+ 368   4              }
+ 369   3      //      }
+ 370   3              Temp_gear=0;
+ 371   3              CLR_Heat;
+ 372   3          }
+ 373   2      //    else
+ 374   2      //    {
+ 375   2      //      warm_jiaxian_time=0;
+ 376   2      //    }
+ 377   2          
+ 378   2        }
+ 379   1        else
+ 380   1        {
+ 381   2          if(system_state!=ZiJian_state)
+ 382   2          {
+ 383   3          Temp_gear=0;
+ 384   3          CLR_Heat;
+ 385   3          }
+ 386   2        }
+ 387   1      }
+ 388          
+ 389          uchar xdata fanzhuan_time;
+ 390          uchar xdata zero_data;
+ 391          uchar xdata zero_time_b;
+ 392          uchar xdata zero_cnt;
+ 393          uchar xdata Temp_gear;
+ 394          void Zero_deal(void) //过零处理
+ 395          {
+ 396   1        if(zero_pro_b!=zero_data)
+ 397   1          {
+ 398   2            zero_data=zero_pro_b;
+ 399   2            zero_time_b=1;  //检测到翻转为1
+ 400   2            fanzhuan_time=0;
+ 401   2          }
+ 402   1          else
+ 403   1          {
+ 404   2            if(fanzhuan_time<250)
+ 405   2            fanzhuan_time++;
+ 406   2          }
+ 407   1          
+ 408   1        if(system_state==Work_state||system_state==Warm_state||system_state==ZiJian_state)
+ 409   1        {
+ 410   2          if(zero_time_b)//为1后进来判
+ 411   2          {
+ 412   3            zero_time_b=0;
+ 413   3            if(++zero_cnt>12)//进来7次
+ 414   3            {
+ 415   4              zero_cnt=1;
+ 416   4            }
+ 417   3            if(Temp_gear==1)//100w
+ 418   3            {
+ 419   4              if(zero_cnt==1)
+ 420   4                SET_Heat;
+ 421   4              else CLR_Heat;
+ 422   4            }
+ 423   3            else if(Temp_gear==2)//300w
+ 424   3            {
+ 425   4                if(zero_cnt==3||zero_cnt==4||zero_cnt==5||zero_cnt==6)
+ 426   4                  SET_Heat;
+C51 COMPILER V9.60.0.0   FUN                                                               09/19/2026 06:38:02 PAGE 8   
+
+ 427   4                else 
+ 428   4                  CLR_Heat;
+ 429   4            }
+ 430   3            else if(Temp_gear==3)//400w
+ 431   3            {
+ 432   4                if(zero_cnt==2||zero_cnt==5||zero_cnt==6||zero_cnt==7)
+ 433   4                  SET_Heat;
+ 434   4                else 
+ 435   4                  CLR_Heat;
+ 436   4            }
+ 437   3            else if(Temp_gear==4)//800w全功率
+ 438   3            {
+ 439   4              SET_Heat;
+ 440   4            }
+ 441   3            else if(Temp_gear==5)//200w
+ 442   3            {
+ 443   4              if(zero_cnt==1||zero_cnt==2)
+ 444   4                SET_Heat;
+ 445   4              else CLR_Heat;
+ 446   4            }
+ 447   3            else if(Temp_gear==6)//600w
+ 448   3            {
+ 449   4              if(zero_cnt==4||zero_cnt==5||zero_cnt==6||zero_cnt==7||zero_cnt==9||zero_cnt==10)
+ 450   4                SET_Heat;
+ 451   4              else CLR_Heat;
+ 452   4            }
+ 453   3            else
+ 454   3            {
+ 455   4              CLR_Heat;
+ 456   4            }
+ 457   3          }
+ 458   2        }
+ 459   1      }
+ 460          
+ 461          
+ 462          
+ 463          uchar xdata shuiwei_dangwei;
+ 464          uchar xdata shuiwei_duibi;
+ 465          uint xdata shuiwei_time;
+ 466          void ShuiWei_deal()       //水位检测
+ 467          {
+ 468   1        if(system_state==Warm_state)
+ 469   1        {
+ 470   2          if(dsp_wendu>shuiwei_duibi+1)
+ 471   2          {
+ 472   3            shuiwei_duibi=dsp_wendu;
+ 473   3              if(shuiwei_time<410)   //相当于8S
+ 474   3              {
+ 475   4                shuiwei_dangwei=Low_water;
+ 476   4              }
+ 477   3              else
+ 478   3              {
+ 479   4                shuiwei_dangwei=High_water;
+ 480   4              }
+ 481   3            shuiwei_time=0;
+ 482   3          }
+ 483   2          else if(dsp_wendu<shuiwei_duibi)
+ 484   2          {
+ 485   3            shuiwei_duibi=dsp_wendu;
+ 486   3            shuiwei_time=0;
+ 487   3            shuiwei_dangwei=High_water;
+ 488   3          }
+C51 COMPILER V9.60.0.0   FUN                                                               09/19/2026 06:38:02 PAGE 9   
+
+ 489   2          else
+ 490   2          {
+ 491   3            if(shuiwei_time<60000)
+ 492   3            shuiwei_time++;
+ 493   3          }
+ 494   2        }
+ 495   1        else if(system_state==Work_state&&(Menu==TiaoNai||Menu==ReTiao))
+ 496   1        {
+ 497   2          if(dsp_wendu>shuiwei_duibi+1)
+ 498   2          {
+ 499   3            shuiwei_duibi=dsp_wendu;
+ 500   3              if(shuiwei_time<410)   //相当于8S
+ 501   3              {
+ 502   4                shuiwei_dangwei=Low_water;
+ 503   4              }
+ 504   3              else
+ 505   3              {
+ 506   4                shuiwei_dangwei=High_water;
+ 507   4              }
+ 508   3            shuiwei_time=0;
+ 509   3          }
+ 510   2          else if(dsp_wendu<shuiwei_duibi)
+ 511   2          {
+ 512   3            shuiwei_duibi=dsp_wendu;
+ 513   3            shuiwei_time=0;
+ 514   3            shuiwei_dangwei=High_water;
+ 515   3          }
+ 516   2          else
+ 517   2          {
+ 518   3            if(shuiwei_time<60000)
+ 519   3            shuiwei_time++;
+ 520   3          }
+ 521   2        }
+ 522   1        else
+ 523   1        {
+ 524   2          shuiwei_time=0;
+ 525   2          shuiwei_dangwei=0;
+ 526   2          shuiwei_duibi=0;
+ 527   2        }
+ 528   1      }
+ 529          
+ 530          
+ 531          uchar xdata gaoyuan_b;
+ 532          uint xdata gaoyuan_time;
+ 533          uchar xdata gaoyuan_temp;
+ 534          void GaoYuan_deal()//高原处理
+ 535          {
+ 536   1        if(Menu==TiaoNai||Menu==ReTiao)
+ 537   1        {
+ 538   2          gaoyuan_b=0;
+ 539   2          return;
+ 540   2        }
+ 541   1        if(dsp_way==dsp_time)return;
+ 542   1        if(adc_NTC_Temp>=80&&adc_NTC_Temp<100&&gaoyuan_b==0)
+ 543   1        {
+ 544   2          if(gaoyuan_temp!=dsp_wendu)
+ 545   2          {
+ 546   3            gaoyuan_temp=dsp_wendu;
+ 547   3            gaoyuan_time=0;
+ 548   3          }
+ 549   2          else
+ 550   2          {
+C51 COMPILER V9.60.0.0   FUN                                                               09/19/2026 06:38:02 PAGE 10  
+
+ 551   3            if(++gaoyuan_time>=Time_1Min)
+ 552   3            {
+ 553   4              gaoyuan_time=0;
+ 554   4              gaoyuan_b=1;
+ 555   4            }
+ 556   3          }
+ 557   2        }
+ 558   1        else if(adc_NTC_Temp<80)
+ 559   1        {
+ 560   2          gaoyuan_b=0;
+ 561   2          gaoyuan_time=0;
+ 562   2        }
+ 563   1        if(adc_NTC_Temp>gaoyuan_temp)
+ 564   1        {
+ 565   2          gaoyuan_b=0;
+ 566   2          gaoyuan_time=0;
+ 567   2        }
+ 568   1        if(gaoyuan_temp>adc_NTC_Temp+1)
+ 569   1        {
+ 570   2          gaoyuan_b=0;
+ 571   2          gaoyuan_time=0; 
+ 572   2        }
+ 573   1      }
+ 574          
+ 575          
+ 576          
+ 577          
+ 578          void Time(void)
+ 579          {
+ 580   1        if(TiHu_b)return;
+ 581   1        if(system_state==YuYue_state)
+ 582   1        {
+ 583   2          if(++Fun_Time>=Time_1Min)
+ 584   2          {
+ 585   3            Fun_Time=0;
+ 586   3            YuYue_Time--;
+ 587   3          }
+ 588   2          
+ 589   2          if(!YuYue_Time)
+ 590   2          {
+ 591   3            system_state=Work_state;
+ 592   3            Fun_Time=0;
+ 593   3            Buz_Start(30,0,1);
+ 594   3            dsp_way=dsp_temp;
+ 595   3            YuYue_b=0;
+ 596   3          }
+ 597   2        }
+ 598   1        else if(system_state==Work_state&&Menu!=ZhuFei&&Menu!=ChuLv&&Menu!=TiaoNai&&Menu!=ReTiao&&start_time_b&&N
+             -o_operation_Time>200)
+ 599   1        {
+ 600   2          if(++Fun_Time>=Time_1Min)
+ 601   2          {
+ 602   3            Fun_Time=0;
+ 603   3            Work_Time--;
+ 604   3          }
+ 605   2          
+ 606   2          if(!Work_Time)
+ 607   2          {
+ 608   3            Warm_Cnt=4320;
+ 609   3            Fun_Time=0;
+ 610   3            system_state=Warm_state;
+ 611   3            frist_baowen_temp=0;
+C51 COMPILER V9.60.0.0   FUN                                                               09/19/2026 06:38:02 PAGE 11  
+
+ 612   3            No_operation_Time=250;
+ 613   3            Buz_Start(30,0,1);
+ 614   3            du_97=0;
+ 615   3            BaoWen_JiaXian_100=1;
+ 616   3            duibi_time2=0;
+ 617   3          }
+ 618   2        }
+ 619   1        else if(system_state==Warm_state)
+ 620   1        {
+ 621   2          if(++Fun_Time>=Time_1Min)
+ 622   2          {
+ 623   3            Fun_Time=0;
+ 624   3            Warm_Cnt--;
+ 625   3          }
+ 626   2          if(!Warm_Cnt)
+ 627   2          {
+ 628   3            system_state=DaiJi_state;
+ 629   3            dsp_way=0;
+ 630   3            Buz_Start(30,30,3);
+ 631   3          }
+ 632   2        }
+ 633   1      }
+ 634          
+ 635          uchar xdata error_b;
+ 636          uchar xdata error_b2;
+ 637          uchar xdata TiHu_time;
+ 638          uchar xdata TiHu_b;
+ 639          uchar xdata TiHu_frist_buz;
+ 640          uchar xdata FangHu_time;
+ 641          uint xdata ChiXu_TiHu_time;
+ 642          uint xdata fanDaiJi_Time;
+ 643          uchar xdata E4_Time;
+ 644          void error_deal()
+ 645          {
+ 646   1        if(system_state==GuanJi_state)return;
+ 647   1        if(fanzhuan_time>=100)return;
+ 648   1        if(ad_NTC_value>=1010)//提壶判断
+ 649   1        {
+ 650   2          if(++TiHu_time>=30)//连续20次
+ 651   2          {
+ 652   3            TiHu_time=0;
+ 653   3            if(TiHu_b==0)
+ 654   3            {
+ 655   4              if(TiHu_frist_buz)
+ 656   4              Buz_Start(15,0,1);
+ 657   4            }
+ 658   3            change_time=0;
+ 659   3            TiHu_b=1;
+ 660   3            gaoyuan_time=0;
+ 661   3            gaoyuan_b=0;
+ 662   3          }
+ 663   2          FangHu_time=0;
+ 664   2        }
+ 665   1        else
+ 666   1        {
+ 667   2          if(++FangHu_time>=30)
+ 668   2          {
+ 669   3            FangHu_time=0;
+ 670   3            if(TiHu_b)
+ 671   3            {
+ 672   4            Buz_Start(15,0,1);
+ 673   4              GuanJi_time=0;
+C51 COMPILER V9.60.0.0   FUN                                                               09/19/2026 06:38:02 PAGE 12  
+
+ 674   4              if(adc_NTC_Temp>=100)
+ 675   4              dsp_wendu=100;
+ 676   4            else
+ 677   4            dsp_wendu=adc_NTC_Temp;
+ 678   4            }
+ 679   3            TiHu_b=0;
+ 680   3            TiHu_frist_buz=1;
+ 681   3          }
+ 682   2          TiHu_time=0;
+ 683   2        }
+ 684   1        
+ 685   1        if(TiHu_b&&(system_state==Work_state||system_state==YuYue_state||system_state==Warm_state))
+ 686   1        {
+ 687   2          if(++ChiXu_TiHu_time>=Time_2Min)
+ 688   2          {
+ 689   3            ChiXu_TiHu_time=0;
+ 690   3            system_state=GuanJi_state;
+ 691   3            Menu=0;
+ 692   3            dsp_way=0;
+ 693   3          }
+ 694   2        }
+ 695   1        else if(TiHu_b&&(system_state==DaiJi_state||system_state==Menu_state))
+ 696   1        {
+ 697   2          if(++ChiXu_TiHu_time>=Time_30S)
+ 698   2          {
+ 699   3            ChiXu_TiHu_time=0;
+ 700   3            system_state=GuanJi_state;
+ 701   3            Menu=0;
+ 702   3            dsp_way=0;
+ 703   3          }
+ 704   2        }
+ 705   1        else
+ 706   1        {
+ 707   2          ChiXu_TiHu_time=0;
+ 708   2        }
+ 709   1        
+ 710   1        
+ 711   1        
+ 712   1        if(ad_NTC_value<=30&&error_b==0&&error_b2==0) //NTC短路
+ 713   1        {
+ 714   2            error_b=2;
+ 715   2            Buz_Start(25,18,15);
+ 716   2        }
+ 717   1        else if(ad_NTC_value<=200&&error_b==0&&error_b2==0)//干烧
+ 718   1        {
+ 719   2            error_b=3;
+ 720   2            Buz_Start(25,18,15);
+ 721   2        }
+ 722   1        else if(Fan_state==0&&error_b==0&&error_b2==0&&Fan_b==0) //风扇开路
+ 723   1        {
+ 724   2          if(++E4_Time>=Time_1S)
+ 725   2          {
+ 726   3            error_b=4;
+ 727   3            Buz_Start(25,18,15);
+ 728   3          }
+ 729   2        }
+ 730   1        else
+ 731   1        {
+ 732   2          E4_Time=0;
+ 733   2        }
+ 734   1      
+ 735   1        if(error_b)
+C51 COMPILER V9.60.0.0   FUN                                                               09/19/2026 06:38:02 PAGE 13  
+
+ 736   1        {
+ 737   2          if(system_state==DaiJi_state||system_state==Menu_state)
+ 738   2          {
+ 739   3            error_b2=error_b;
+ 740   3            error_b=0;
+ 741   3            GuanJi_time=0;
+ 742   3          }
+ 743   2          else
+ 744   2              system_state=BaoJing_state;
+ 745   2        }
+ 746   1        if(system_state==BaoJing_state)
+ 747   1        {
+ 748   2          if(++fanDaiJi_Time>=Time_30S)
+ 749   2          {
+ 750   3            system_state=DaiJi_state;
+ 751   3            error_b2=error_b;
+ 752   3            error_b=0;
+ 753   3            Menu=0;
+ 754   3          }
+ 755   2        }
+ 756   1      }
+ 757          
+ 758          
+ 759          
+ 760          
+ 761          
+ 762          
+ 763          
+ 764          
+ 765          
+ 766          
+ 767          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3236    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     40    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,1372 @@
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE BF7613BMXX_XXXX_API_TK
+OBJECT MODULE PLACED IN .\Output\BF7613BMXX_XXXX_API_TK.obj
+COMPILER INVOKED BY: D:\Keil_51\C51\BIN\C51.EXE Source\BF7613BMXX_XXXX_API_TK.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\I
+                    -nc;.\User) DEBUG PRINT(.\List\BF7613BMXX_XXXX_API_TK.lst) TABS(2) OBJECT(.\Output\BF7613BMXX_XXXX_API_TK.obj)
+
+line level    source
+
+   1          #include "Config.h"
+   2          
+   3          #if (CS_SW == 1)
+                #include "DataDeal.h"
+              #endif
+   6          
+   7          
+   8          #if SNS_NUM
+   9          
+  10          unsigned char code  SNS[30] ={SCAN_00,SCAN_01,SCAN_02,SCAN_03,SCAN_04,SCAN_05,SCAN_06,SCAN_07,SCAN_08,SCAN
+             -_09,SCAN_10,SCAN_11,SCAN_12,SCAN_13,SCAN_14,SCAN_15,SCAN_16,SCAN_17,SCAN_18,SCAN_19,SCAN_20,SCAN_21,SCAN_22,SCAN_23,SCAN
+             -_24,SCAN_25,SCAN_26,SCAN_27,SCAN_28,SCAN_29};
+  11          unsigned int  code  FTH[30] ={FTH00,FTH01,FTH02,FTH03,FTH04,FTH05,FTH06,FTH07,FTH08,FTH09,FTH10,FTH11,FTH1
+             -2,FTH13,FTH14,FTH15,FTH16,FTH17,FTH18,FTH19,FTH20,FTH21,FTH22,FTH23,FTH24,FTH25,FTH26,FTH27,FTH28,FTH29};
+  12          unsigned int  code  PUIV[30]={PUIV00,PUIV01,PUIV02,PUIV03,PUIV04,PUIV05,PUIV06,PUIV07,PUIV08,PUIV09,PUIV10
+             -,PUIV11,PUIV12,PUIV13,PUIV14,PUIV15,PUIV16,PUIV17,PUIV18,PUIV19,PUIV20,PUIV21,PUIV22,PUIV23,PUIV24,PUIV25,PUIV26,PUIV27,
+             -PUIV28,PUIV29};
+  13          
+  14          unsigned char xdata pull_i_step[SNS_NUM]  = {7};
+  15          unsigned int  xdata pull_i_value[SNS_NUM] = {300};
+  16          unsigned char xdata sensor_open[SNS_NUM]  = {0};
+  17          
+  18          //-----------------------------------------------------------------//
+  19          //函数名称： void CTK_Set_Para(void)
+  20          //函数功能： 设置CTK扫描参数及基线更新参数
+  21          //输入参数： 无
+  22          //输出参数： 无
+  23          //返 回 值： 无
+  24          //-----------------------------------------------------------------//
+  25          void CTK_Set_Para(void)
+  26          {
+  27   1      
+  28   1          unsigned char i = 0;
+  29   1          for (i = 0; i < SNS_NUM; i++)
+  30   1          {
+  31   2            open_sns |= ((ulong)0x01)<<SNS[i];
+  32   2            sensor_open[i] = SNS[i];
+  33   2            pull_i_value[i] = PUIV[i];
+  34   2            //初始化电流源参数
+  35   2            raw_data[i] = 0;
+  36   2            n_base_line[i] = base_line[i] = 0x0001;
+  37   2            
+  38   2          }
+  39   1        
+  40   1      }
+  41          
+  42          uchar Sns_Count = 0;
+  43          unsigned char xdata touch_confirm_count[SNS_NUM] = {0};
+  44          unsigned char xdata touch_left_count[SNS_NUM] = {0};
+  45          
+  46          unsigned char xdata noise_count[SNS_NUM] = {0};
+  47          unsigned char xdata noise_flag[SNS_NUM] = 0;
+  48          
+  49          unsigned char xdata n_base_line_reno_count[SNS_NUM] = {0};
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 2   
+
+  50          
+  51          #if UN_NORMAL_CHECK
+                  unsigned char xdata un_normal_count = 0;
+                  unsigned char xdata un_normal_recover_count = 0;
+                  bit un_normal_flag = 0;
+                  unsigned long xdata adjust_flag = 0;
+              
+              
+              //-----------------------------------------------------------------//
+              //函数名称： void Rawdata_Un_Normal(uchar sns_num)
+              //函数功能： Rawdata异常判断，注：不能识别所有异常情况，此功能根据实际项目情况添加。
+              //输入参数： uchar sns_num：通道索引
+              //输出参数： 无
+              //返 回 值： 无
+              //-----------------------------------------------------------------//
+              void Rawdata_Un_Normal(uchar sns_num)
+              {
+                if(un_normal_flag == 0)
+                {
+                    if(raw_data[sns_num] >= (((unsigned long)(((unsigned long)0x0001)<<(((SNS_SCAN_CFG3>>4)&0x07) + 9)))*8/
+             -10))  
+                    {
+                        
+                        un_normal_count++;
+                        if(un_normal_count >= UN_NORMAL_MAX_COUNT)
+                        {
+                            un_normal_count = 0;
+                            if(un_normal_recover_count < UN_NORMAL_RECOVER_MAX_COUNT)//允许异常判断恢复un_normal_recover_max_co
+             -unt次
+                            {
+              
+                                EA = 0;                     //关总中断
+                                adjust_done_flag = 0;
+                                un_normal_recover_count++;
+                                CTK_IE_SET;
+                                CTK_ADDR_SET(sensor_open[0]);
+                                CTK_START;
+                                EA = 1;                     //开总中断
+              
+                            }
+                        }
+                    }
+                  
+                } 
+              
+              }
+              #endif
+  95          
+  96          //-----------------------------------------------------------------//
+  97          //函数名称： void CTK_Init(void)
+  98          //函数功能： CTK初始化
+  99          //输入参数： 无
+ 100          //返 回 值： 无
+ 101          //-----------------------------------------------------------------//
+ 102          
+ 103          void CTK_Init(void)
+ 104          {
+ 105   1        EA = 0;                     //关总中断
+ 106   1        //设置CTK扫描参数及基线更新参数
+ 107   1        CTK_Set_Para();
+ 108   1        
+ 109   1        CTK_IE_SET;
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 3   
+
+ 110   1        CTK_IP_CLR;
+ 111   1        
+ 112   1        TRISB |= ((open_sns >> 0)  & 0xFF);
+ 113   1        TRISC |= ((open_sns >> 8)  & 0xFF);
+ 114   1        TRISD |= ((open_sns >> 16) & 0xFF);
+ 115   1        TRISA |= ((open_sns >> 24) & 0x3F);
+ 116   1        
+ 117   1        SNS_IO_SEL1 |= ((open_sns)&0xFF);
+ 118   1        SNS_IO_SEL2 |= ((open_sns>>8)&0xFF);
+ 119   1        SNS_IO_SEL3 |= ((open_sns>>16)&0xFF);
+ 120   1        SNS_IO_SEL4 |= ((open_sns>>24)&0x3F);//SNS、IO选择
+ 121   1      
+ 122   1        
+ 123   1        CTK_PRS_SW_SET(0);          //前端充放电开关,1为关，0为开
+ 124   1        CTK_RESO_SET(CTK_RESO);     //0~7 CTK电容扫描分辨率，计数器位数：(CFG_CTK_RESOLUTION+9)位。
+ 125   1        CTK_PRS_SET(CTK_PRS);       //PRS(充放电频率) = 48/2/(x+4),62:正态分布(1~1.5~3)MHz,63:均匀分布(1~1.5~3)MHz,2
+             -6--800KHz,20--1MHz,12--1.5MHz,8--2MHz
+ 126   1        CTK_DS_SET(CTK_DS);         //检测速度0:24MHz,1:12MHz,2:6MHz,3:4MHz
+ 127   1        CTK_PAR_SET(Mode);          //0为单通道模式，1为多通道并联模式
+ 128   1        CTK_RB_SET(CTK_RB);         //选择RB电阻大小4:60K,5:80K,其它保留
+ 129   1        CTK_VTH_SET(CTK_REF);       //参考电压(0:1.5V),(1:2.1V),(2:2.5V),(3:2.8V),(4:3.2V),(5:3.5V),(6:3.8V),(7:4.2V
+             -);注：VCC-VTH>0.5V
+ 130   1        CTK_PULL_I_SET(pull_i_value[0]);//设置电流源级数
+ 131   1        CTK_PRE_CH_SET(1);          //预充电时间：0为20us,1为40us
+ 132   1        CTK_PRE_DISCH_SET(1);       //预放电时间：0为2us,1为10us
+ 133   1        CTK_PD_SET(0);              //0为CTK开，1为CTK关
+ 134   1        CTK_STOP;                   //停止扫描
+ 135   1      
+ 136   1        CTK_ADDR_SET(sensor_open[0]);
+ 137   1        CTK_START;
+ 138   1        EA = 1;                     //开总中断
+ 139   1        
+ 140   1      }
+ 141          #endif
+ 142          //-----------------------------------------------------------------//
+ 143          //函数名称： void BF7613BMXX_XXXXX_Set_Touch_Flag(void)
+ 144          //函数功能： 触摸判断并置位或者清除触摸标志位
+ 145          //输入参数： 无
+ 146          //输出参数： 无
+ 147          //返 回 值： 无
+ 148          //-----------------------------------------------------------------//
+ 149          void BF7613BMXX_XXXX_Set_Touch_Flag(void)
+ 150          {
+ 151   1        #if SNS_NUM 
+ 152   1      
+ 153   1          #ifdef IDLE_MODE
+                    #if (IDLE_MODE == 1)
+                    if(parallel_mode == 0)
+                    {
+                      if(ctk_circle_done == 1)//中断模式
+                      {
+                        ctk_circle_done = 0;
+                        CTK_IE_CLR;//关CTK中断
+                      
+                        for(Sns_Count = 0; Sns_Count < SNS_NUM; Sns_Count++)
+                        {
+                          if(SNS[Sns_Count] != 255)
+                          {
+                            
+                            CTK_SNS_Renovate(Sns_Count,FTH[SNS[Sns_Count]]);
+                            
+                            #if TRACEMODE
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 4   
+
+                            
+                              if(keys_flag & ((long)0x01 << SNS[Sns_Count]))
+                              {
+                                keys_flag_Tracemode |= ((long)0x01 << Sns_Count);
+                              }
+                              else
+                              {
+                                keys_flag_Tracemode &= ~((long)0x01 << Sns_Count);
+                              }
+                            
+                            #endif
+                            
+                            #if UN_NORMAL_CHECK
+                              Rawdata_Un_Normal(Sns_Count);
+                            #endif
+                          }
+                          
+                        }
+                        CTK_IE_SET;//开CTK中断
+                      }
+                    }
+                    else
+                    {
+                        Idle(); 
+                    }
+                    #else
+                        if(ctk_circle_done == 1)//中断模式
+                        {
+                          ctk_circle_done = 0;
+                          CTK_IE_CLR;//关CTK中断
+              
+                          for(Sns_Count = 0; Sns_Count < SNS_NUM; Sns_Count++)
+                          {
+                            if(SNS[Sns_Count] != 255)
+                            {
+                              
+                              CTK_SNS_Renovate(Sns_Count,FTH[SNS[Sns_Count]]);
+                            
+                              #if TRACEMODE
+                                if(keys_flag & ((long)0x01 << SNS[Sns_Count]))
+                                {
+                                  keys_flag_Tracemode |= ((long)0x01 << Sns_Count);
+                                }
+                                else
+                                {
+                                  keys_flag_Tracemode &= ~((long)0x01 << Sns_Count);
+                                }
+                              #endif
+                              
+                              #if UN_NORMAL_CHECK
+                                Rawdata_Un_Normal(Sns_Count);
+                              #endif
+                            }
+                            
+                          }
+                          CTK_IE_SET;//开CTK中断
+                        }
+                    #endif
+                  #endif
+ 229   1          
+ 230   1          #ifndef IDLE_MODE
+ 231   1          if(ctk_circle_done == 1)//中断模式
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 5   
+
+ 232   1          {
+ 233   2            ctk_circle_done = 0;
+ 234   2            CTK_IE_CLR;//关CTK中断
+ 235   2      
+ 236   2            for(Sns_Count = 0; Sns_Count < SNS_NUM; Sns_Count++)
+ 237   2            {
+ 238   3              if(SNS[Sns_Count] != 255)
+ 239   3              {
+ 240   4                
+ 241   4                CTK_SNS_Renovate(Sns_Count,FTH[SNS[Sns_Count]]);
+ 242   4              
+ 243   4                #if TRACEMODE
+                          if(keys_flag & ((long)0x01 << SNS[Sns_Count]))
+                          {
+                            keys_flag_Tracemode |= ((long)0x01 << Sns_Count);
+                          }
+                          else
+                          {
+                            keys_flag_Tracemode &= ~((long)0x01 << Sns_Count);
+                          }
+                        #endif
+ 253   4                
+ 254   4                #if UN_NORMAL_CHECK
+                          Rawdata_Un_Normal(Sns_Count);
+                        #endif
+ 257   4              }
+ 258   3              
+ 259   3            }
+ 260   2            CTK_IE_SET;//开CTK中断
+ 261   2          }
+ 262   1          #endif
+ 263   1        #endif
+ 264   1        
+ 265   1      } 
+ 266          
+ 267          //////////TK////////////
+ 268          
+ 269          #if CH_MAX
+ 270          unsigned int  xdata raw_data[CH_MAX] ={0};
+ 271          unsigned int  xdata base_line[CH_MAX] = {1};
+ 272          #endif
+ 273          
+ 274          #if SNS_NUM
+ 275            unsigned char xdata Mode = 0;
+ 276            unsigned char sns_next = 0;
+ 277            static unsigned char xdata adjust_count = 0;
+ 278          
+ 279            #if (CS_SW == 1)
+                  uint cs_noise = 0;
+                #endif
+ 282          
+ 283            bit adjust_done_flag = 0;
+ 284            bit base_line_int_flag = 0;
+ 285            bit ctk_circle_done = 0;
+ 286            
+ 287          
+ 288            unsigned int xdata pull_i_value_parallel = 100;
+ 289            unsigned long xdata open_sns = 0;
+ 290            bit parallel_mode = 0;
+ 291            bit parallel_init_flag = 1;
+ 292            bit ctk_para_done = 0;
+ 293            
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 6   
+
+ 294          
+ 295            unsigned int  xdata n_base_line[SNS_NUM] = {1};
+ 296          
+ 297            unsigned long xdata muli_key_flag = 0;
+ 298            unsigned long xdata keys_flag = 0;  
+ 299            unsigned long xdata mode_flag = 0;
+ 300              
+ 301            unsigned int  xdata long_key_clear_count = 0;   
+ 302          
+ 303            unsigned char xdata multi_key_count = 0;
+ 304            unsigned char xdata multi_key_reset_cnt = 0;
+ 305          
+ 306            #if (RENOVATE_MODE == 1)
+ 307            bit water_flow_flag = 0;  
+ 308            unsigned int  xdata water_flow_left_count = 0;  
+ 309            unsigned char xdata water_flow_key_count = 0; 
+ 310            unsigned char xdata water_flow_key_reset_cnt = 0;
+ 311            #endif
+ 312            
+ 313            void CTK_BF7613BMXX_XXXX_Adjust_Int(void);
+ 314            void CTK_BF7613BMXX_XXXX_Para_Adjust_Int(void);
+ 315            void Base_Line_Init();
+ 316            void Set_Next_SNS(void);
+ 317            
+ 318            #ifdef IDLE_MODE
+                  #if IDLE_MODE
+                  
+                  //-----------------------------------------------------------------//
+                  //函数名称： void Set_Para_SNS(void)
+                  //函数功能： 设置并联模式通道
+                  //输入参数： 无
+                  //输出参数： 无
+                  //返 回 值： 无
+                  //-----------------------------------------------------------------// 
+                  void Set_Para_SNS(void)
+                  {
+                      CTK_PAR_SET(1);           //0为单通道模式，1为多通道并联模式
+                      CTK_PULL_I_SET(pull_i_value_parallel);//设置级数
+                      CTK_RESO_SET(CTK_PARA_RESO); 
+                      CTK_PRS_SET(CTK_PARA_PRS);
+                      CTK_RB_SET(CTK_PARA_RB);  
+                      CTK_VTH_SET(CTK_PARA_REF);  
+                      CTK_ADDR_SET(sensor_open[0]);
+                      CTK_START;
+                  }
+                  
+                  //-----------------------------------------------------------------//
+                  //函数名称： void CTK_BF7613BMXX_XXXX_Para_Adjust_Int(void)
+                  //函数功能：并联模式通道电流源自适应
+                  //输入参数： 无
+                  //输出参数： 无
+                  //返 回 值： 无
+                  //-----------------------------------------------------------------//        
+              
+                  void CTK_BF7613BMXX_XXXX_Para_Adjust_Int(void)
+                  {
+                    if(adjust_count < 3)
+                    {
+                      while(1)
+                      {
+                        WDT_CTRL = 7;
+                        
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 7   
+
+                        if((raw_data_parallel[0] >= ADJUST_PARA_LINE))
+                        {
+                          if(pull_i_value_parallel < (511 - ADJUST_STE))
+                          {
+                            pull_i_value_parallel += (1 + ADJUST_STE);
+                            
+                            
+                            Set_Para_SNS();
+                            return;
+                          } 
+                          else
+                          {
+                            parallel_init_flag = 1;
+                            base_line_parallel[0] = raw_data_parallel[0];           
+                            Set_Next_SNS();
+                            return;
+                          }
+                        }
+                        else
+                        { 
+                            if(adjust_count < 3)
+                            {
+                              adjust_count++;
+                            }
+              
+                            if(pull_i_value_parallel > (0))
+                            {
+                              pull_i_value_parallel-= (1);
+                              
+                              Set_Para_SNS();
+                              
+                              return;
+                            }
+                            else
+                            {
+                                Set_Para_SNS();
+                                return;
+                            } 
+                        }
+                      }
+                    }
+                    
+                    if(adjust_count >= 3)
+                    {
+                      while(1)
+                      {
+                        WDT_CTRL = 7;
+                        
+                        if((raw_data_parallel[0] <= ADJUST_PARA_LINE))
+                        {
+                          if(pull_i_value_parallel > (0))
+                          {
+                            pull_i_value_parallel -= (1);
+                          
+                            Set_Para_SNS();
+                            return;
+                          } 
+                          else
+                          {
+                            parallel_init_flag = 1;
+                            base_line_parallel[0] = raw_data_parallel[0];
+                            Set_Next_SNS();
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 8   
+
+                            return;
+                          }
+                        }
+                        else
+                        { 
+                            if(adjust_count < 6)
+                            {
+                              adjust_count++;
+                            }
+                            if(adjust_count >= 6)
+                            {
+                              adjust_count = 0;
+                              parallel_init_flag = 1;
+                              base_line_parallel[0] = raw_data_parallel[0];           
+                              Set_Next_SNS();
+                              return;
+                            }
+              
+                            if(pull_i_value_parallel < (511 - ADJUST_STE))
+                            {
+                              pull_i_value_parallel += (1 + ADJUST_STE);
+              
+                              Set_Para_SNS();
+                              return;
+                            }
+                            else
+                            {
+                                Set_Para_SNS();
+                                return;
+                            } 
+                        }
+                      }
+                    }
+                  }
+                  #endif
+                #endif
+ 454            //-----------------------------------------------------------------//
+ 455            //函数名称： void Set_Next_SNS(void)
+ 456            //函数功能： 设置下一个通道
+ 457            //输入参数： 无
+ 458            //输出参数： 无
+ 459            //返 回 值： 无
+ 460            //-----------------------------------------------------------------// 
+ 461            void Set_Next_SNS(void)
+ 462            {
+ 463   1          CTK_PULL_I_SET(pull_i_value[sns_next]);//设置电流源级数
+ 464   1          CTK_ADDR_SET(sensor_open[sns_next]);
+ 465   1          
+ 466   1          #ifdef IDLE_MODE
+                    #if IDLE_MODE
+                      CTK_PAR_SET(0);           //0为单通道模式，1为多通道并联模式
+                      CTK_RESO_SET(CTK_RESO); 
+                      CTK_PRS_SET(CTK_PRS); 
+                      CTK_VTH_SET(CTK_REF); 
+                      CTK_RB_SET(CTK_RB); 
+                    #endif
+                  #endif
+ 475   1          
+ 476   1          CTK_START;
+ 477   1        }
+ 478            
+ 479            //-----------------------------------------------------------------//
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 9   
+
+ 480            //函数名称： void CTK_ISR() interrupt 12
+ 481            //函数功能： CTK中断服务函数
+ 482            //输入参数： 无
+ 483            //输出参数： 无
+ 484            //返 回 值： 无
+ 485            //-----------------------------------------------------------------// 
+ 486            void CTK_ISR() interrupt 12
+ 487            {
+ 488   1            static uchar xdata addr_bak = 0;
+ 489   1            PUSH_REG_ADDR_SFR();
+ 490   1            CTK_INT_FLAG_CLR;//清除CTK中断标志位
+ 491   1      
+ 492   1            CTK_STOP; 
+ 493   1            #if Timer0_EN
+ 494   1            ctk_soft_reset_count = 0;
+ 495   1            #endif
+ 496   1            if(parallel_mode == 0)
+ 497   1            {
+ 498   2                #if (CS_SW == 1)
+                        if(adjust_done_flag == 0)
+                        #endif
+ 501   2                {             
+ 502   3                    EA = 0;
+ 503   3                    raw_data[sns_next] = ((unsigned int)CSD_RAWDATAH << 8) | (unsigned int)CSD_RAWDATAL;//获取CTK数据
+ 504   3                    EA = 1;             
+ 505   3                }
+ 506   2                
+ 507   2                if(adjust_done_flag == 0)
+ 508   2                {
+ 509   3                  #ifdef IDLE_MODE
+                            #if IDLE_MODE
+                              parallel_init_flag = 0;
+                            #endif
+                          #endif
+ 514   3                  CTK_BF7613BMXX_XXXX_Adjust_Int();
+ 515   3                  
+ 516   3                }
+ 517   2                else
+ 518   2                {
+ 519   3                    if(parallel_init_flag == 1)
+ 520   3                    {
+ 521   4      
+ 522   4                      #if (CS_SW == 1)  
+                                cs_noise = Data_Deal(CS_F_NUM,0,SNS_NUM); 
+                                Set_Next_SNS();
+                              #else
+ 526   4                      
+ 527   4                      sns_next++;
+ 528   4                      while(sensor_open[sns_next] == 0xFF)
+ 529   4                      {
+ 530   5                          CTK_STOP; 
+ 531   5                          sns_next++;
+ 532   5                          if(sns_next >= SNS_NUM)
+ 533   5                          {
+ 534   6                              sns_next = 0;
+ 535   6                              ctk_circle_done = 1;
+ 536   6                              break;
+ 537   6                          }
+ 538   5                      }
+ 539   4                      if(sns_next >= SNS_NUM)
+ 540   4                      {
+ 541   5                          sns_next = 0;
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 10  
+
+ 542   5                          ctk_circle_done = 1;
+ 543   5                      }
+ 544   4                    
+ 545   4                      Set_Next_SNS();
+ 546   4                      #endif
+ 547   4                    }
+ 548   3                    #ifdef IDLE_MODE
+                              #if IDLE_MODE
+                              else
+                              {
+                                    EA = 0;
+                                    raw_data_parallel[0] = ((unsigned int)CSD_RAWDATAH << 8) | (unsigned int)CSD_RAWDATAL;//获取CTK
+             -数据
+                                    EA = 1;
+                                    
+                                    CTK_BF7613BMXX_XXXX_Para_Adjust_Int();
+                              }
+                              #endif
+                            #endif
+ 560   3                }
+ 561   2            }
+ 562   1            #ifdef IDLE_MODE
+                      #if IDLE_MODE
+                      else
+                      {
+                          EA = 0;
+                          raw_data_parallel[0] = ((unsigned int)CSD_RAWDATAH << 8) | (unsigned int)CSD_RAWDATAL;//获取CTK数据
+                          EA = 1;
+                        
+                          ctk_para_done = 1;
+                          Set_Para_SNS();
+                          
+                      }
+                      #endif
+                    #endif
+ 576   1            POP_REG_ADDR_SFR();
+ 577   1        }
+ 578          
+ 579            //-----------------------------------------------------------------//
+ 580            //函数名称： void Base_Line_Init()
+ 581            //函数功能： 基线初始化
+ 582            //输入参数： 无
+ 583            //输出参数： 无
+ 584            //返 回 值： 无
+ 585            //-----------------------------------------------------------------//
+ 586            void Base_Line_Init()
+ 587            {   
+ 588   1            unsigned char xdata i;
+ 589   1            for (i = 0; i < SNS_NUM; i++) 
+ 590   1            {
+ 591   2              #if KEYS_RENOVATE_FLAG
+ 592   2              if(KEYS_RENOVATE_FLAG &(((unsigned long)0x01)<<sensor_open[i]))
+ 593   2              {
+ 594   3                EA = 0;
+ 595   3                base_line[i] = raw_data[i];
+ 596   3                EA = 1;
+ 597   3              }
+ 598   2              #endif
+ 599   2            } 
+ 600   1        }
+ 601          
+ 602          
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 11  
+
+ 603          
+ 604            //-----------------------------------------------------------------//
+ 605            //函数名称： void CTK_Long_TK_Count(void)
+ 606            //函数功能： 长按键计数
+ 607            //输入参数： 无
+ 608            //输出参数： 无
+ 609            //返 回 值： 无
+ 610            //-----------------------------------------------------------------//
+ 611            void CTK_Long_TK_Count(void)
+ 612            {
+ 613   1              #if LONG_KEY_COUNT
+ 614   1              if(long_key_clear_count >= LONG_KEY_COUNT)
+ 615   1              {
+ 616   2                  long_key_clear_count = 0;
+ 617   2                  keys_flag = 0;
+ 618   2                  Base_Line_Init();
+ 619   2              }
+ 620   1              #endif
+ 621   1        }
+ 622          
+ 623          
+ 624            //-----------------------------------------------------------------//
+ 625            //函数名称： void CTK_TK_Left_Count(uchar addr)
+ 626            //函数功能： 手指离开判断计数
+ 627            //输入参数： 无
+ 628            //输出参数： 无
+ 629            //返 回 值： 无
+ 630            //-----------------------------------------------------------------//
+ 631            void CTK_TK_Left_Count(uchar addr)
+ 632            {
+ 633   1            touch_left_count[addr]++;
+ 634   1            touch_confirm_count[addr] = 0;
+ 635   1            if(touch_left_count[addr] >= TK_LEFT_COUNT)
+ 636   1            {
+ 637   2              touch_left_count[addr] = 0;
+ 638   2              keys_flag &= ~(((unsigned long)0x01) << sensor_open[addr]);
+ 639   2            }
+ 640   1        }
+ 641          
+ 642            //-----------------------------------------------------------------//
+ 643            //函数名称： void CTK_SNS_Renovate(unsigned char addr,unsigned int fth)
+ 644            //函数功能： SNS基线更新
+ 645            //输入参数： unsigned char addr：SNS通道;unsigned int fth:手指阈值
+ 646            //输出参数： 无
+ 647            //返 回 值： 无
+ 648            //-----------------------------------------------------------------//
+ 649            void CTK_SNS_Renovate(unsigned char addr,unsigned int fth)
+ 650            {
+ 651   1          long differ = 0;
+ 652   1          #if (RENOVATE_MODE == 1)  
+ 653   1          long differ_mode1 = 0;
+ 654   1          #endif
+ 655   1          
+ 656   1          uchar i = 0;
+ 657   1          
+ 658   1          long fth_tem = 0;
+ 659   1          fth_tem = fth;
+ 660   1          
+ 661   1          fth_tem = (fth_tem*(ulong)CFG_Rb_Rate)/100;
+ 662   1          
+ 663   1          
+ 664   1          differ = (long)base_line[addr] - (long)raw_data[addr];
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 12  
+
+ 665   1      
+ 666   1          
+ 667   1          #if (CS_SW == 1)
+                    if(cs_noise >= CS_NOISE)
+                    {
+                      fth_tem = (CS_FTH_RATE*fth_tem)/10;
+                    }
+                    if((keys_flag & ((ulong)0x01 << sensor_open[addr])))
+                    {
+                      fth_tem = (FTHD_HY_RATE*fth_tem)/10;
+                    }
+              
+                  #endif
+ 678   1            
+ 679   1          
+ 680   1          
+ 681   1          if((keys_flag & ((ulong)0x01 << sensor_open[addr])))
+ 682   1          {
+ 683   2            fth_tem = (TK_RATE_HY*fth_tem)/10;
+ 684   2          }
+ 685   1            
+ 686   1          if(adjust_done_flag == 1)
+ 687   1          {
+ 688   2            if(base_line_int_flag == 0)
+ 689   2            {
+ 690   3              base_line_int_flag = 1;
+ 691   3            
+ 692   3              Base_Line_Init();
+ 693   3              
+ 694   3            }
+ 695   2          }
+ 696   1          
+ 697   1          CTK_Long_TK_Count();
+ 698   1          
+ 699   1          #if TK_EOT
+                    if(differ >= 0)
+                    {
+                      if(differ >= (fth_tem*TK_EOT))
+                      {
+                          touch_left_count[addr] = 0;
+                          touch_confirm_count[addr] = 0;
+                          keys_flag &= ~(((unsigned long)0x01) << sensor_open[addr]);
+                          Base_Line_Init();
+                      }
+                    }
+                  #endif
+ 711   1          
+ 712   1          #if (MULTI_KEY_MAX_COUNT != 0)
+ 713   1          if(differ >= 0)
+ 714   1          {
+ 715   2            if(differ >= (((int)fth)*RENOVATE_NTH_RATE/10))//多按键标志判断
+ 716   2            {
+ 717   3                muli_key_flag |= ((long)0x01 << sensor_open[addr]); 
+ 718   3            }
+ 719   2            else
+ 720   2            {
+ 721   3                muli_key_flag &= ~((long)0x01 << sensor_open[addr]);  
+ 722   3            }
+ 723   2          }
+ 724   1          else
+ 725   1          {
+ 726   2              muli_key_flag &= ~((long)0x01 << sensor_open[addr]);  
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 13  
+
+ 727   2          }
+ 728   1          
+ 729   1          multi_key_count = 0;
+ 730   1          for(i = 0; i < SNS_NUM;i++)//模式1多按键判断
+ 731   1          {
+ 732   2            if((muli_key_flag & (((unsigned long)0x01) << sensor_open[i])))
+ 733   2            {
+ 734   3              multi_key_count++;//模式1多按键计数
+ 735   3            }
+ 736   2          }
+ 737   1      
+ 738   1          if(multi_key_count > MULTI_KEY_MAX_COUNT)
+ 739   1          {
+ 740   2              multi_key_count = 0;
+ 741   2              multi_key_reset_cnt++;
+ 742   2              if(multi_key_reset_cnt >= MULTI_KEY_RST_COUNT)
+ 743   2              {
+ 744   3                multi_key_reset_cnt = 0;
+ 745   3                
+ 746   3                keys_flag= 0;
+ 747   3                Base_Line_Init();
+ 748   3              
+ 749   3              }
+ 750   2          }
+ 751   1          else
+ 752   1          {
+ 753   2              multi_key_reset_cnt = 0;
+ 754   2          }
+ 755   1          #endif
+ 756   1            #if (RENOVATE_MODE == 1)  
+ 757   1            differ_mode1 = (long)n_base_line[addr] - (long)base_line[addr];
+ 758   1            if(differ_mode1 >= 0)//模式1differ判断
+ 759   1            {
+ 760   2              if(differ_mode1 >= (((int)fth)*WATER_FLOW_RATE/10))//模式1标志判断
+ 761   2              {
+ 762   3                  mode_flag |= ((long)0x01 << sensor_open[addr]); 
+ 763   3                  n_base_line_reno_count[addr] = 0;
+ 764   3              }
+ 765   2              else
+ 766   2              {
+ 767   3                  n_base_line_reno_count[addr]++;
+ 768   3                  if(n_base_line_reno_count[addr] >= N_BASE_LINE_RENO_MAX_COUNT)
+ 769   3                  {
+ 770   4                      n_base_line[addr] -= differ_mode1/10;
+ 771   4                      n_base_line_reno_count[addr] = 0;
+ 772   4                      if(KEYS_RENOVATE_FLAG &(((unsigned long)0x01)<<sensor_open[addr]))
+ 773   4                      {
+ 774   5                        mode_flag &= ~((long)0x01 << sensor_open[addr]);
+ 775   5                      }               
+ 776   4                  }
+ 777   3              }
+ 778   2            }
+ 779   1            else
+ 780   1            {
+ 781   2                if(KEYS_RENOVATE_FLAG &(((unsigned long)0x01)<<sensor_open[addr]))
+ 782   2                {
+ 783   3                  
+ 784   3                  n_base_line[addr] -= differ_mode1/10;
+ 785   3                  
+ 786   3                }
+ 787   2                mode_flag &= ~((long)0x01 << sensor_open[addr]);  
+ 788   2            }
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 14  
+
+ 789   1            
+ 790   1        
+ 791   1            water_flow_key_count = 0;
+ 792   1            for(i = 0; i < SNS_NUM;i++)//模式1多按键判断
+ 793   1            {
+ 794   2              if((mode_flag & (((unsigned long)0x01) << sensor_open[i])))
+ 795   2              {
+ 796   3                water_flow_key_count++;//模式1溢水计数
+ 797   3              }
+ 798   2              
+ 799   2            }
+ 800   1            
+ 801   1          
+ 802   1            if(water_flow_key_count > WATER_FLOW_MAX_COUNT)//模式1溢水判断
+ 803   1            {
+ 804   2                
+ 805   2                water_flow_key_count = 0;
+ 806   2                water_flow_key_reset_cnt++;   
+ 807   2                if(water_flow_key_reset_cnt >= WATER_FLOW_RST_COUNT)
+ 808   2                {
+ 809   3                  water_flow_key_reset_cnt = 0;
+ 810   3                  water_flow_left_count = 0;
+ 811   3                  if(water_flow_flag == 0)
+ 812   3                  {
+ 813   4                    keys_flag= 0;
+ 814   4                    Base_Line_Init(); 
+ 815   4                    water_flow_flag = 1;
+ 816   4                    
+ 817   4                  }
+ 818   3                }
+ 819   2                
+ 820   2            }
+ 821   1            else
+ 822   1            {
+ 823   2              if(water_flow_flag == 1)//模式1溢水标志判断计数清除
+ 824   2              {
+ 825   3                  water_flow_left_count++;
+ 826   3                  if(water_flow_left_count >= WATER_FLOW_LEFT_MAX_COUNT)
+ 827   3                  {
+ 828   4                    water_flow_flag = 0;
+ 829   4                    water_flow_left_count = 0;
+ 830   4                  }
+ 831   3              }
+ 832   2              else
+ 833   2              {
+ 834   3                water_flow_left_count = 0;
+ 835   3              }
+ 836   2            }
+ 837   1          #endif
+ 838   1      
+ 839   1          if(differ > 0)//differ大于0情况
+ 840   1          {
+ 841   2      
+ 842   2            #if (RENOVATE_MODE == 1)
+ 843   2            //模式1
+ 844   2            if(water_flow_flag == 1)
+ 845   2            {
+ 846   3              if((mode_flag & (((unsigned long)0x01) << sensor_open[addr])))
+ 847   3              {
+ 848   4                  fth_tem = (fth_tem*RENOVATE_MODE1_FTH_RATE/10);//模式1手指阈值  
+ 849   4              }
+ 850   3            }
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 15  
+
+ 851   2            #endif
+ 852   2            
+ 853   2            if(differ >= (fth_tem*RENOVATE_FTH_RATE/10))
+ 854   2            {
+ 855   3                //有触摸，不作基线更新
+ 856   3                touch_confirm_count[addr]++;
+ 857   3                touch_left_count[addr] = 0;
+ 858   3                if(touch_confirm_count[addr] >= TK_COMFIRM_COUNT)
+ 859   3                {
+ 860   4                    keys_flag |= (((unsigned long)0x01) << sensor_open[addr]);
+ 861   4                    touch_confirm_count[addr] = 0;
+ 862   4                }
+ 863   3                else
+ 864   3                {
+ 865   4                  
+ 866   4                }
+ 867   3                
+ 868   3            }
+ 869   2            else if(differ >= (((int)fth)*RENOVATE_NTH_RATE/10))//>=p_noise基线更新
+ 870   2            {
+ 871   3                #if (RENOVATE_MODE == 0)//模式0基线更新
+                            
+                            CTK_TK_Left_Count(addr);
+                            if(noise_flag[addr]==1)
+                            {
+                              noise_count[addr]++;
+                            }
+                            else
+                            {
+                              noise_flag[addr]=1;
+                              noise_count[addr]=1;
+                            }
+                      
+                            if(noise_count[addr] >= OVER_P_NOISE_MAX_COUNT)
+                            {
+                              noise_count[addr] = 0;
+                              
+                              #if KEYS_RENOVATE_FLAG
+                              if(KEYS_RENOVATE_FLAG &(((unsigned long)0x01)<<sensor_open[addr]))
+                              {
+                                
+                                  base_line[addr] -= differ/5;
+                                
+                              }
+                              #endif
+                            }
+                        
+                        #endif  
+ 899   3                #if (RENOVATE_MODE == 1)//模式1基线更新
+ 900   3                    
+ 901   3                    CTK_TK_Left_Count(addr);
+ 902   3                    if(noise_flag[addr]==1)
+ 903   3                    {
+ 904   4                      noise_count[addr]++;
+ 905   4                    }
+ 906   3                    else
+ 907   3                    {
+ 908   4                      noise_flag[addr]=1;
+ 909   4                      noise_count[addr]=1;
+ 910   4                    }     
+ 911   3              
+ 912   3                    if(noise_count[addr] >= OVER_P_NOISE_MAX_COUNT)
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 16  
+
+ 913   3                    {
+ 914   4                      noise_count[addr] = 0;
+ 915   4                      
+ 916   4                      #if KEYS_RENOVATE_FLAG
+ 917   4                      if(KEYS_RENOVATE_FLAG &(((unsigned long)0x01)<<sensor_open[addr]))
+ 918   4                      {
+ 919   5                        
+ 920   5                          base_line[addr] -= differ/5;
+ 921   5                        
+ 922   5                      }
+ 923   4                      #endif
+ 924   4                    }
+ 925   3                
+ 926   3                #endif
+ 927   3                
+ 928   3            }
+ 929   2            else//differ<=p_noise基线更新
+ 930   2            {
+ 931   3                #if (RENOVATE_MODE == 0)//模式0基线更新
+                            CTK_TK_Left_Count(addr);
+                            if(noise_flag[addr]==2)
+                            {
+                              noise_count[addr]++;
+                            }
+                            else
+                            {
+                              noise_flag[addr]=2;
+                              noise_count[addr]=1;
+                            }
+                            
+                            if(noise_count[addr] >= UNDER_P_NOISE_MAX_COUNT)
+                            {
+                              noise_count[addr] = 0;
+                              #if KEYS_RENOVATE_FLAG
+                              if(KEYS_RENOVATE_FLAG &(((unsigned long)0x01)<<sensor_open[addr]))
+                              {
+                                base_line[addr] = raw_data[addr];
+                              }
+                              #endif
+                            }
+                        
+                        #endif
+ 955   3                #if (RENOVATE_MODE == 1)
+ 956   3                //模式1基线更新
+ 957   3                    CTK_TK_Left_Count(addr);
+ 958   3                    
+ 959   3                    if(noise_flag[addr]==2)
+ 960   3                    {
+ 961   4                      noise_count[addr]++;
+ 962   4                    }
+ 963   3                    else
+ 964   3                    {
+ 965   4                      noise_flag[addr]=2;
+ 966   4                      noise_count[addr]=1;
+ 967   4                    }
+ 968   3                    
+ 969   3                    if(noise_count[addr] >= UNDER_P_NOISE_MAX_COUNT)
+ 970   3                    {
+ 971   4                      noise_count[addr] = 0;
+ 972   4                      if(KEYS_RENOVATE_FLAG &(((unsigned long)0x01)<<sensor_open[addr]))
+ 973   4                      {               
+ 974   5                        base_line[addr] = raw_data[addr];             
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 17  
+
+ 975   5                      }
+ 976   4                    }
+ 977   3                
+ 978   3                #endif
+ 979   3            }
+ 980   2          }
+ 981   1          else//differ<0的情况
+ 982   1          {
+ 983   2            CTK_TK_Left_Count(addr);
+ 984   2            if(differ >= (-(((int)fth)*RENOVATE_NTH_RATE/10)))//>= n_poise情况
+ 985   2            {
+ 986   3                #if (RENOVATE_MODE == 0)//模式0基线更新
+                          if(noise_flag[addr]==3)
+                          {
+                            noise_count[addr]++;
+                          }
+                          else
+                          {
+                            noise_flag[addr]=3;
+                            noise_count[addr]=1;
+                          }
+                          if(noise_count[addr] >= OVER_N_NOISE_MAX_COUNT)
+                          {
+                            noise_count[addr] = 0;
+                            #if KEYS_RENOVATE_FLAG
+                            if(KEYS_RENOVATE_FLAG &(((unsigned long)0x01)<<sensor_open[addr]))
+                            {
+                            
+                              base_line[addr] = raw_data[addr];
+                            
+                            }
+                            #endif
+                          }
+                      
+                        #endif
+1010   3                  
+1011   3                #if (RENOVATE_MODE == 1)
+1012   3                //模式1基线更新
+1013   3                  
+1014   3                  if(noise_flag[addr]==3)
+1015   3                  {
+1016   4                    noise_count[addr]++;
+1017   4                  }
+1018   3                  else
+1019   3                  {
+1020   4                    noise_flag[addr]=3;
+1021   4                    noise_count[addr]=1;
+1022   4                  }
+1023   3                
+1024   3                  if(noise_count[addr] >= OVER_N_NOISE_MAX_COUNT)
+1025   3                  {
+1026   4                    noise_count[addr] = 0;
+1027   4                    #if KEYS_RENOVATE_FLAG
+1028   4                    if(KEYS_RENOVATE_FLAG &(((unsigned long)0x01)<<sensor_open[addr]))
+1029   4                    {
+1030   5                    
+1031   5                      base_line[addr] = raw_data[addr];
+1032   5                    
+1033   5                    }
+1034   4                    #endif
+1035   4                  }
+1036   3                
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 18  
+
+1037   3                #endif
+1038   3            }
+1039   2            else if((differ >= -(UNDER_N*((int)fth)*RENOVATE_FTH_RATE/10)))
+1040   2            {
+1041   3                #if (RENOVATE_MODE == 0)//模式0基线更新
+                          if(noise_flag[addr]==4)
+                          {
+                            noise_count[addr]++;
+                          }
+                          else
+                          {
+                            noise_flag[addr]=4;
+                            noise_count[addr]=1;
+                          }
+                      
+                          if(noise_count[addr] >= UNDER_N_NOISE_MAX_COUNT)
+                          {
+                            noise_count[addr] = 0;
+                            #if KEYS_RENOVATE_FLAG
+                            if(KEYS_RENOVATE_FLAG &(((unsigned long)0x01)<<sensor_open[addr]))
+                            {
+                              base_line[addr] -= differ/2;            
+                            }
+                            #endif          
+                            
+                          }
+                      #endif
+1064   3                
+1065   3              #if (RENOVATE_MODE == 1)//模式1基线更新
+1066   3                  
+1067   3                  if(noise_flag[addr]==4)
+1068   3                  {
+1069   4                    noise_count[addr]++;
+1070   4                  }
+1071   3                  else
+1072   3                  {
+1073   4                    noise_flag[addr]=4;
+1074   4                    noise_count[addr]=1;
+1075   4                  }
+1076   3              
+1077   3                  if(noise_count[addr] >= UNDER_N_NOISE_MAX_COUNT)
+1078   3                  {
+1079   4                    noise_count[addr] = 0;
+1080   4                    #if KEYS_RENOVATE_FLAG
+1081   4                    if(KEYS_RENOVATE_FLAG &(((unsigned long)0x01)<<sensor_open[addr]))
+1082   4                    {
+1083   5                        base_line[addr] -= differ/2;        
+1084   5                    }
+1085   4                    #endif          
+1086   4                    
+1087   4                  }
+1088   3              #endif
+1089   3            }
+1090   2            else
+1091   2            {
+1092   3                #if (RENOVATE_MODE == 0)//模式0基线更新
+              
+                          if(noise_flag[addr]==5)
+                          {
+                            noise_count[addr]++;
+                          }
+                          else
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 19  
+
+                          {
+                            noise_flag[addr]=5;
+                            noise_count[addr]=1;
+                          }       
+                          
+                        if(noise_count[addr] >= UNDER_NN_NOISE_MAX_COUNT)
+                        {
+                          noise_count[addr] = 0;
+                          
+                          #if KEYS_RENOVATE_FLAG
+                          if(KEYS_RENOVATE_FLAG &(((unsigned long)0x01)<<sensor_open[addr]))
+                          {
+                            base_line[addr] -= differ/5;              
+                          }
+                          #endif
+                        } 
+                        #endif
+1116   3                
+1117   3                #if (RENOVATE_MODE == 1)//模式1基线更新
+1118   3                  if(noise_flag[addr]==5)
+1119   3                  {
+1120   4                    noise_count[addr]++;
+1121   4                  }
+1122   3                  else
+1123   3                  {
+1124   4                    noise_flag[addr]=5;
+1125   4                    noise_count[addr]=1;
+1126   4                  } 
+1127   3                  
+1128   3                if(noise_count[addr] >= UNDER_NN_NOISE_MAX_COUNT)
+1129   3                {
+1130   4                  noise_count[addr] = 0;
+1131   4                  
+1132   4                  #if KEYS_RENOVATE_FLAG
+1133   4                    if(KEYS_RENOVATE_FLAG &(((unsigned long)0x01)<<sensor_open[addr]))
+1134   4                    {
+1135   5                      base_line[addr] -= differ/5;          
+1136   5                    }
+1137   4                  #endif
+1138   4                } 
+1139   3                #endif
+1140   3            }
+1141   2          }
+1142   1        }
+1143            
+1144            
+1145            //-----------------------------------------------------------------//
+1146            //函数名称： void CTK_BF7613BMXX_XXXX_Adjust_Int(void)
+1147            //函数功能：通道电流源自适应
+1148            //输入参数： 无
+1149            //输出参数： 无
+1150            //返 回 值： 无
+1151            //-----------------------------------------------------------------//        
+1152          
+1153            void CTK_BF7613BMXX_XXXX_Adjust_Int(void)
+1154            {
+1155   1          if(adjust_count < 3)
+1156   1          {
+1157   2            while(1)
+1158   2            {
+1159   3              WDT_CTRL = 7;
+1160   3              
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 20  
+
+1161   3              if((raw_data[sns_next] >= ADJUST_LINE))
+1162   3              {
+1163   4                if(pull_i_value[sns_next] < (511 - ADJUST_STE))
+1164   4                {
+1165   5                  pull_i_value[sns_next] += (1 + ADJUST_STE);
+1166   5                  Set_Next_SNS();
+1167   5                  return;
+1168   5                } 
+1169   4                else
+1170   4                {
+1171   5                  
+1172   5                  sns_next++;
+1173   5                  if(sns_next >= SNS_NUM)
+1174   5                  {
+1175   6                      sns_next = 0;
+1176   6                      adjust_count = 0;
+1177   6                      adjust_done_flag = 1;//自适应完成
+1178   6                      
+1179   6                  }
+1180   5                  
+1181   5                  Set_Next_SNS();
+1182   5                  return;
+1183   5                }
+1184   4              }
+1185   3              else
+1186   3              { 
+1187   4                  n_base_line[sns_next] = base_line[sns_next] = raw_data[sns_next];
+1188   4                  sns_next++;
+1189   4                  if(sns_next >= SNS_NUM)
+1190   4                  {
+1191   5                      if(adjust_count < 3)
+1192   5                      {
+1193   6                        adjust_count++;
+1194   6                      }
+1195   5      
+1196   5                      sns_next = 0;
+1197   5                      if(pull_i_value[sns_next] > (0))
+1198   5                      {
+1199   6                        pull_i_value[sns_next] -= (1);
+1200   6                        Set_Next_SNS();
+1201   6                        return;
+1202   6                      }
+1203   5                    
+1204   5                      Set_Next_SNS();
+1205   5                      break;
+1206   5                  }
+1207   4      
+1208   4                  if(pull_i_value[sns_next] > (0))
+1209   4                  {
+1210   5                    pull_i_value[sns_next] -= (1);
+1211   5                    Set_Next_SNS();
+1212   5                    return;
+1213   5                  }
+1214   4                  else
+1215   4                  {
+1216   5                      Set_Next_SNS();
+1217   5                      return;
+1218   5                  } 
+1219   4              }
+1220   3            }
+1221   2          }
+1222   1          
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 21  
+
+1223   1          if(adjust_count >= 3)
+1224   1          {
+1225   2            while(1)
+1226   2            {
+1227   3              WDT_CTRL = 7;
+1228   3              
+1229   3              if((raw_data[sns_next] <= ADJUST_LINE))
+1230   3              {
+1231   4                if(pull_i_value[sns_next] > (0))
+1232   4                {
+1233   5                  pull_i_value[sns_next] -= (1);
+1234   5                  Set_Next_SNS();
+1235   5                  return;
+1236   5                } 
+1237   4                else
+1238   4                {
+1239   5                  sns_next++;
+1240   5                  if(sns_next >= SNS_NUM)
+1241   5                  {
+1242   6                      sns_next = 0;
+1243   6                      adjust_count = 0;
+1244   6                      adjust_done_flag = 1;
+1245   6                      
+1246   6                  }
+1247   5                  
+1248   5                  Set_Next_SNS();
+1249   5                  
+1250   5                  return;
+1251   5                }
+1252   4                
+1253   4              }
+1254   3              else
+1255   3              { 
+1256   4                  n_base_line[sns_next] = base_line[sns_next] = raw_data[sns_next];
+1257   4                  sns_next++;
+1258   4                  if(sns_next >= SNS_NUM)
+1259   4                  {
+1260   5                      sns_next = 0;
+1261   5                    
+1262   5                      if(adjust_count < 6)
+1263   5                      {
+1264   6                        adjust_count++;
+1265   6                      }
+1266   5                      if(adjust_count >= 6)
+1267   5                      {
+1268   6                        adjust_count = 0;
+1269   6                        adjust_done_flag = 1;
+1270   6                      }
+1271   5                      Set_Next_SNS();
+1272   5                      break;
+1273   5                  }
+1274   4        
+1275   4                  if(pull_i_value[sns_next] < (511 - ADJUST_STE))
+1276   4                  {
+1277   5                    pull_i_value[sns_next] += (1 + ADJUST_STE);
+1278   5                    Set_Next_SNS();
+1279   5                    return;
+1280   5                  }
+1281   4                  else
+1282   4                  {
+1283   5                      Set_Next_SNS();
+1284   5                      return;
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_TK                                            09/19/2026 06:38:03 PAGE 22  
+
+1285   5                  } 
+1286   4              }
+1287   3            }
+1288   2          }
+1289   1        }
+1290            
+1291          #endif
+1292          //////////TK////////////
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   4022    ----
+   CONSTANT SIZE    =    150    ----
+   XDATA SIZE       =    177       1
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      2      18
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      7    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,287 @@
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_TRACEMODE                                         09/19/2026 06:38:03 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE BF7613BMXX_XXXX_TRACEMODE
+OBJECT MODULE PLACED IN .\Output\BF7613BMXX_XXXX_TraceMode.obj
+COMPILER INVOKED BY: D:\Keil_51\C51\BIN\C51.EXE Source\BF7613BMXX_XXXX_TraceMode.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(
+                    -.\Inc;.\User) DEBUG PRINT(.\List\BF7613BMXX_XXXX_TraceMode.lst) TABS(2) OBJECT(.\Output\BF7613BMXX_XXXX_TraceMode.obj)
+
+line level    source
+
+   1          #include "Config.h"
+   2          
+   3          #if (TRACEMODE == TRUE)
+              void TraceMode_Master_Read_Data(unsigned int *p_rawData,unsigned int *p_baseline,unsigned long t_keysFlagS
+             -N);   
+              unsigned char data ReadCnt = 0;
+              unsigned char data ReceData = 0;
+              unsigned char data DataNum = 0;
+              bit OddCheck = 0,NeedCheckOdd = 0;
+              unsigned int xdata raw = 0;
+              unsigned int xdata bas = 0;
+              
+              
+              //-----------------------------------------------------------------//
+              //º¯ÊýÃû³Æ£º void TraceMode_Master_Write_Data(void)  
+              //º¯Êý¹¦ÄÜ£º ´ÓIICBUF¶ÁÈ¡Êý¾Ý
+              //ÊäÈë²ÎÊý£º ÎÞ
+              //Êä³ö²ÎÊý£º ÎÞ
+              //·µ »Ø Öµ£º ÎÞ
+              //-----------------------------------------------------------------//
+              #pragma disable
+              void TraceMode_Master_Write_Data(void) 
+              {   
+                ReceData = IICBUF;
+              }
+              
+              
+              //#pragma message "±àÒë,TRACEMODE¹¦ÄÜ"
+              unsigned long xdata keys_flag_Tracemode = 0;  
+              
+              //-----------------------------------------------------------------//
+              //º¯ÊýÃû³Æ£º void Trace_Mode_IIC_ISR_PA() interrupt 10 
+              //º¯Êý¹¦ÄÜ£º PA¿ÚIICÖÐ¶Ï×Óº¯Êý
+              //ÊäÈë²ÎÊý£º ÎÞ
+              //Êä³ö²ÎÊý£º ÎÞ
+              //·µ »Ø Öµ£º ÎÞ
+              //-----------------------------------------------------------------//
+              void Trace_Mode_IIC_ISR_PA() interrupt 10
+              {
+                  uchar tmp;
+                  static uchar xdata addr_bak = 0;
+                  PUSH_REG_ADDR_SFR();
+                  IRCON1 &= ~0x08;//IIC_INT_FLAG_CLR;//Çå³ýIICÖÐ¶Ï±êÖ¾Î»
+              
+                  if (IICSTAT & 0x02)//IICS_WCOL)//Ð´³åÍ»±êÖ¾Î»
+                  { 
+                      IICSTAT &= ~0x02;//IICS_WCOL_CLR;
+                  }
+                  if (IICSTAT & 0x01)//IICS_RECOV)//¶Á³åÍ»±êÖ¾Î»  
+                  {
+                      IICSTAT &= ~0x01;//IICS_RECOV_CLR;
+                      tmp = IICBUF;
+                  }
+                  if ((IICSTAT & 0x10)==0)//IICS_AD == 0)//ÊÇµØÖ·
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_TRACEMODE                                         09/19/2026 06:38:03 PAGE 2   
+
+                  {  
+                  
+                      if (IICSTAT & 0x20)//IICS_RW)//Ö÷»ú¶Á 
+                      {
+                          ReadCnt = 0;
+                          OddCheck = 0;
+                          DataNum = 0;
+                          TraceMode_Master_Read_Data(raw_data,base_line,keys_flag_Tracemode);
+                          IICCON |= 0x04;//SCLEN_SET; 
+                      }
+                      else //Ö÷»úÐ´
+                      {
+                          tmp = IICBUF;
+                      }   
+                    }
+                    else 
+                    {
+                      if (IICSTAT & 0x20)//IICS_RW)//Ö÷»ú¶Á 
+                      {     
+                          TraceMode_Master_Read_Data(raw_data,base_line,keys_flag_Tracemode);
+                          IICCON |= 0x04;//SCLEN_SET;     
+                      }
+                      else//Ö÷»úÐ´  
+                      {   
+                    
+                        if (IICSTAT & 0x08)//IICS_BF) 
+                        { 
+                          TraceMode_Master_Write_Data();
+                        }
+                      }
+                  }
+                  IICCON |= 0x04;//SCLEN_SET; 
+                  POP_REG_ADDR_SFR();
+              }
+              
+              //-----------------------------------------------------------------//
+              //º¯ÊýÃû³Æ£º void BF7613BMXX_XXXX_Trace_Mode_Init(uchar iic_port)   
+              //º¯Êý¹¦ÄÜ£º BF7613BMXX_XXXX_Trace_Mode_Init³õÊ¼»¯
+              //ÊäÈë²ÎÊý£º uchar iic_port,IIC¶Ë¿ÚÓ³ÉäÑ¡Ôñ£¬
+              //Êä³ö²ÎÊý£º ÎÞ
+              //·µ »Ø Öµ£º ÎÞ
+              //-----------------------------------------------------------------//
+              void BF7613BMXX_XXXX_Trace_Mode_Init(uchar iic_port)
+              {
+                
+                  EA = 0;//¹Ø×ÜÖÐ¶Ï£» 
+                  IPL1 |= 0x08; //ÉèÖÃIICÖÐ¶ÏÓÅÏÈ¼¶Îª¸ß£¬¸ù¾ÝÊµ¼ÊÓ¦ÔËÉèÖÃÓÅÏÈ¼¶
+                  IRCON1 &= ~0x08;//Çå³ýIICÖÐ¶Ï±êÖ¾Î» 
+                
+                  if(iic_port == 0)
+                  {
+                    TRISA |= 0x03;//ÉèÖÃSDA¡¢SCLÎªÊäÈë£»(PA1/PA0-SDA_A/SCL_A)
+                  }
+                  else if(iic_port == 1)
+                  {
+                      TRISC |= 0x01;
+                      TRISB |= 0x20;//ÉèÖÃSDA¡¢SCLÎªÊäÈë£»(PC0/PB5-SDA_B/SCL_B)
+                  }
+                  else if(iic_port == 2)
+                  {
+                      TRISD |= 0x40;
+                      TRISA |= 0x02;//ÉèÖÃSDA¡¢SCLÎªÊäÈë£»(PD6/PA1-SDA_C/SCL_C)
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_TRACEMODE                                         09/19/2026 06:38:03 PAGE 3   
+
+                        
+                  }
+                  
+                  IICADD = 0x54;//ÉèÖÃIIC´Ó»úµØÖ·£»
+                
+                  IICCON |= 0x01;//IIC¹¤×÷Ê¹ÄÜ
+                  IICCON |= (0x02);//IIC×ª»»ËÙÂÊÊÊÓ¦100K
+                  IICCON |= 0x04;//SLCÊ±ÖÓÕý³£¹¤×÷
+                  IICCON &= (~0x08);//²»Ê¹ÄÜÐ´À­µÍ,¸ù¾ÝIICÖ÷»ú¶ÁÐ´Ê±ÐòÉèÖÃ
+                  IICCON |= (0x10);//Ê¹ÄÜ¶ÁÀ­µÍ£¬¸ù¾ÝIICÖ÷»ú¶ÁÐ´Ê±ÐòÉèÖÃ
+                
+                  PERIPH_IO_SEL &= ~(0x60);
+                  PERIPH_IO_SEL |= (0x60&(1<<5));//bit5/6:IIC_FIL_SEL(1);//1:ÎªÊý×ÖÂË²¨(SleepÄ£Ê½ÏÂÎÞ»½ÐÑ¹¦ÄÜ)£»2ÎªÄ£ÄâÂË²
+             -¨£»3ÎªÄ£ÄâºÍÊý×ÖÂË²¨
+                  PERIPH_IO_SEL &= ~(0x18);
+                  PERIPH_IO_SEL |= (0x18&(iic_port<<3));//bit3/4:0:Ó³Éäµ½SDA0_A/SCL0_A£»1:Ó³Éäµ½SDA0_B/SCL0_B£»2:Ó³Éäµ½SDA
+             -0_C/SCL0_C£»
+                  IEN1 |= 0x08; //¿ªIICÖÐ¶ÏÊ¹ÄÜ
+                  EA = 1;//¿ª×ÜÖÐ¶Ï£»
+                
+              }
+              //-----------------------------------------------------------------//
+              //º¯ÊýÃû³Æ£º void TraceMode_Master_Read_Data(uint *p_rawData,uint *p_baseline,ulong t_keysFlagSN)   
+              //º¯Êý¹¦ÄÜ£º ½«·¢ËÍµÄÊý¾ÝÐ´ÈëIICBUF
+              //ÊäÈë²ÎÊý£º ÎÞ
+              //Êä³ö²ÎÊý£º ÎÞ
+              //·µ »Ø Öµ£º ÎÞ
+              //-----------------------------------------------------------------//
+              
+              #pragma disable
+              void TraceMode_Master_Read_Data(unsigned int *p_rawData,unsigned int *p_baseline,unsigned long t_keysFlagS
+             -N)    
+              {   
+                unsigned char data tmp = 0;
+              
+                if(ReceData == 0xb2)
+                {
+                  if(ReadCnt == 0)
+                    tmp = 0xae;
+                  else if(ReadCnt == 1)
+                    tmp = CH_MAX;   
+                }
+                else if(ReceData == 0xb3)
+                {
+                  if(ReadCnt < 1)     //·¢ËÍÍ·Âë0XAE
+                  {
+                    tmp = 0xae;     
+                  }
+                  else if(ReadCnt < ((CH_MAX<<1) + 1))  //·¢ËÍRAWDATA
+                  {
+                    NeedCheckOdd = 1;
+                    if(ReadCnt % 2) 
+                    {
+                      raw = *(p_rawData + DataNum);
+                      tmp = (raw >> 8);
+                    }
+                    else
+                    {
+                      tmp = raw;
+                      DataNum ++; 
+                    }
+                  }
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_TRACEMODE                                         09/19/2026 06:38:03 PAGE 4   
+
+                  else if(ReadCnt == ((CH_MAX << 1) + 1))  //·¢ËÍBASELINE[0]¸ß8Î»
+                  {
+                    NeedCheckOdd = 1;
+                    DataNum = 0;
+                    bas = *(p_baseline + DataNum);
+                    tmp = (bas >> 8);
+                  }
+                  else if(ReadCnt < ((CH_MAX << 2) + 1))    //·¢ËÍBASELINE
+                  {
+                    
+                    NeedCheckOdd = 1;
+                    if(ReadCnt % 2) 
+                    {
+                      bas = *(p_baseline + DataNum);
+                      tmp = (bas >> 8);
+                    }
+                    else
+                    {
+                      tmp = bas;  
+                      DataNum++;  
+                    }
+                    
+                  } 
+                  else if(ReadCnt == ((CH_MAX << 2) + 1))   //·¢ËÍÆæÅ¼Ð£ÑéÎ»
+                  {
+                    tmp = OddCheck;
+                    
+                  }
+                  else if(ReadCnt == ((CH_MAX << 2) + 2))   //·¢ËÍÓÐÐ§Êý¾Ý³¤¶È
+                  {           
+                    tmp = (CH_MAX << 2);
+                  }       
+                  else if(ReadCnt == ((CH_MAX << 2) + 2))   //·¢ËÍÓÐÐ§Êý¾Ý³¤¶È
+                  {           
+                    tmp = (CH_MAX << 2);
+                  }       
+                  else if(ReadCnt == ((CH_MAX << 2) + 3))   //´¥Ãþ±êÖ¾Î»bit31:17
+                  {             
+                    tmp = (unsigned char )(t_keysFlagSN >> 24);
+                  }
+                  else if(ReadCnt == ((CH_MAX << 2) + 4))   //´¥Ãþ±êÖ¾Î»bit23:16
+                  {             
+                    tmp = (unsigned char )(t_keysFlagSN >> 16);
+                  }
+                  else if(ReadCnt == ((CH_MAX << 2) + 5))   //´¥Ãþ±êÖ¾Î»bit15:8
+                  {            
+                    tmp = (unsigned char )(t_keysFlagSN >> 8);
+                    
+                  }
+                  else if(ReadCnt == ((CH_MAX << 2) + 6))   //´¥Ãþ±êÖ¾Î»bit7:0
+                  {           
+                    tmp = (unsigned char )t_keysFlagSN;           
+                  }                 
+                  else                                    //·¢ËÍ½áÊøÂë0xff¡¢0xff
+                  {           
+                    tmp = 0xff; 
+                  }
+                }
+              
+                IICBUF = tmp;
+                
+                if(NeedCheckOdd)    //µ±Ç°Êý¾ÝÊÇ·ñÐèÒª½øÐÐÆæÅ¼Ð£Ñé
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_TRACEMODE                                         09/19/2026 06:38:03 PAGE 5   
+
+                {
+                  NeedCheckOdd = 0;
+                  
+                  ACC = tmp;
+                  if((PSW & 0x01))
+                    OddCheck = !OddCheck;
+                }
+                ReadCnt ++;
+              }
+              
+              #endif
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   ----    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
