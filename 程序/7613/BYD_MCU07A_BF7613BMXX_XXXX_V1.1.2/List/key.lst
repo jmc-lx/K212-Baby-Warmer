@@ -1,0 +1,805 @@
+C51 COMPILER V9.60.0.0   KEY                                                               09/19/2026 18:56:55 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE KEY
+OBJECT MODULE PLACED IN .\Output\key.obj
+COMPILER INVOKED BY: D:\Keil_51\C51\BIN\C51.EXE key.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Inc;.\User) DEBUG PRINT(.\L
+                    -ist\key.lst) TABS(2) OBJECT(.\Output\key.obj)
+
+line level    source
+
+   1          #include "Config.h"
+   2          
+   3          
+   4          void key_menu_deal();
+   5          void key_power_deal();
+   6          void key_setTime_deal(uchar select);
+   7          void key_setTime_Longdeal(uchar select);
+   8          void key_Fan_deal();
+   9          void key_Warm_deal();
+  10          uchar xdata key_deal;
+  11          uchar xdata key_count;
+  12          
+  13          uchar xdata key_buz_b;
+  14          uchar xdata Menu;
+  15          uchar xdata baowen_temp;
+  16          uchar xdata temp_max;
+  17          uchar xdata temp_min;
+  18          ulong xdata key_value;
+  19          uchar xdata Fan_b;
+  20          uint  xdata ShangDian_Time;
+  21          uchar xdata Jian_baowen_xianzhi;
+  22          //#define ZhuFei  1
+  23          //#define ChuLv   2
+  24          //#define DunZhu  3
+  25          //#define YuYue   4
+  26          //#define TiaoNai 5
+  27          //#define ReTiao  6
+  28          //#define HuaCha  7
+  29          //#define WenHuo  8
+  30          
+  31          unsigned char xdata baowen_1;
+  32          unsigned char xdata baowen_2;
+  33          unsigned char xdata baowen_3;
+  34          unsigned char xdata baowen_4;
+  35          unsigned char xdata baowen_5;
+  36          unsigned char xdata baowen_6;
+  37          unsigned char xdata baowen_7;
+  38          unsigned char xdata baowen_8;
+  39          unsigned char xdata baowen_9;
+  40          unsigned char xdata baowen_xiugai_b;
+  41          unsigned int xdata dunzhu_time;
+  42          unsigned int xdata huacha_time;
+  43          unsigned int xdata wenhuo_time;
+  44          code unsigned char SetTemp_Tel[]={0,100,100,100,0,45,55,100,100};
+  45          //code unsigned char SetTime_Tel[]={0,0,0,120,0,4320,4320,20,60};
+  46          //code unsigned char SetBaoWen_Tel[]={0,45,45,65,0,0,0,65,65};
+  47          uchar xdata SetBaoWen_Tel[15];
+  48          uint xdata SetTime_Tel[15];
+  49          //code unsigned char SetBaoWen_Tel[]={0,baowen_1,baowen_1,baowen_3,0,baowen_5,baowen_6,baowen_7,baowen_8};
+  50          code unsigned int Set_Max[]={0,100,100,240,1440,55,70,60,240};
+  51          code unsigned int Set_Min[]={0,100,100,60,30,35,50,20,60};
+  52          
+  53          void shuzu_fuzhi(void)
+  54          {
+C51 COMPILER V9.60.0.0   KEY                                                               09/19/2026 18:56:55 PAGE 2   
+
+  55   1        SetBaoWen_Tel[1]=baowen_1;
+  56   1        SetBaoWen_Tel[2]=baowen_2;
+  57   1        SetBaoWen_Tel[3]=baowen_3;
+  58   1        SetBaoWen_Tel[5]=baowen_5;
+  59   1        SetBaoWen_Tel[6]=baowen_6;
+  60   1        SetBaoWen_Tel[7]=baowen_7;
+  61   1        SetBaoWen_Tel[8]=baowen_8;
+  62   1        SetBaoWen_Tel[9]=baowen_9;
+  63   1        
+  64   1        
+  65   1        SetTime_Tel[3]=dunzhu_time;
+  66   1        SetTime_Tel[7]=huacha_time;
+  67   1        SetTime_Tel[8]=wenhuo_time;
+  68   1      }
+  69          
+  70          void Key_duration(void)
+  71          {
+  72   1        if(key_deal)
+  73   1        {
+  74   2          switch(keys_flag)
+  75   2          {
+  76   3            case key_add:
+  77   3                if(key_count>120)
+  78   3                {
+  79   4                  key_count=80;
+  80   4                  key_setTime_Longdeal(1);
+  81   4                }
+  82   3              break;
+  83   3              
+  84   3              case key_cut:
+  85   3                if(key_count>120)
+  86   3                {
+  87   4                  key_count=80;
+  88   4                  key_setTime_Longdeal(0);
+  89   4                }
+  90   3              break; 
+  91   3          }
+  92   2        }
+  93   1        if(system_state==ZiJian_state)
+  94   1        {
+  95   2          if(keys_flag!=0)
+  96   2          { 
+  97   3            key_count++;
+  98   3            if(key_deal)return;
+  99   3            switch(keys_flag)
+ 100   3            {
+ 101   4              case key_menu:
+ 102   4                if(key_count>4)
+ 103   4                {
+ 104   5                  if(++ZiJian_menu>2)ZiJian_menu=3;
+ 105   5                  if(ZiJian_menu==3)
+ 106   5                  {
+ 107   6                      ZiJian_menu2=0;
+ 108   6                      Temp_gear=4;
+ 109   6                  }
+ 110   5                  key_deal=1;
+ 111   5                  key_buz_b=1;
+ 112   5                }
+ 113   4              break;
+ 114   4              
+ 115   4              case key_power:
+ 116   4                if(key_count>4)
+C51 COMPILER V9.60.0.0   KEY                                                               09/19/2026 18:56:55 PAGE 3   
+
+ 117   4                {
+ 118   5                  if(ZiJian_menu==3)
+ 119   5                  {
+ 120   6                    ZiJian_menu2=1;
+ 121   6                    key_deal=1;
+ 122   6                    key_buz_b=1;
+ 123   6                    Temp_gear=3;
+ 124   6                  }
+ 125   5                }
+ 126   4              break;
+ 127   4              
+ 128   4              case key_add:
+ 129   4                if(key_count>4)
+ 130   4                {
+ 131   5                  if(ZiJian_menu==3)
+ 132   5                  {
+ 133   6                    ZiJian_menu2=2;
+ 134   6                    key_deal=1;
+ 135   6                    key_buz_b=1;
+ 136   6                    SET_Fan;
+ 137   6                    Fan_b=1;
+ 138   6                  } 
+ 139   5                }
+ 140   4              break;
+ 141   4              
+ 142   4              case key_cut:
+ 143   4                if(key_count>=200)
+ 144   4                {
+ 145   5                  system_state=GuanJi_state;
+ 146   5                  key_deal=1;
+ 147   5                  key_buz_b=1;
+ 148   5                }
+ 149   4              break;
+ 150   4            }
+ 151   3            key_value=keys_flag;
+ 152   3          }
+ 153   2          else
+ 154   2          {
+ 155   3            if(key_value==key_cut)
+ 156   3            {
+ 157   4              if(key_count>4)
+ 158   4                {
+ 159   5                  if(ZiJian_menu==3)
+ 160   5                  {
+ 161   6                    ZiJian_menu2=3;
+ 162   6                    key_deal=1;
+ 163   6                    key_buz_b=1;
+ 164   6                  } 
+ 165   5                }
+ 166   4            }
+ 167   3            key_count=0;
+ 168   3            key_deal=0;
+ 169   3          }
+ 170   2        }
+ 171   1        else
+ 172   1        {
+ 173   2          if(keys_flag!=0)
+ 174   2          { 
+ 175   3            key_count++;
+ 176   3            if(key_deal)return;
+ 177   3            switch(keys_flag)
+ 178   3            {
+C51 COMPILER V9.60.0.0   KEY                                                               09/19/2026 18:56:55 PAGE 4   
+
+ 179   4              case key_zijian:
+ 180   4                if(ShangDian_Time>=Time_10S)return;
+ 181   4                if(key_count>=250)
+ 182   4                {
+ 183   5                  system_state=ZiJian_state;
+ 184   5                  key_deal=1;
+ 185   5                  key_buz_b=1;
+ 186   5                }
+ 187   4              break;
+ 188   4              case key_menu:
+ 189   4                key_Warm_deal();
+ 190   4              break;
+ 191   4              
+ 192   4              case key_power:
+ 193   4                  key_Fan_deal();
+ 194   4              break;
+ 195   4              
+ 196   4              case key_add:
+ 197   4                if(key_count>4)
+ 198   4                {
+ 199   5                  key_setTime_deal(1);
+ 200   5                }
+ 201   4              break;
+ 202   4              
+ 203   4              case key_cut:
+ 204   4                if(key_count>4)
+ 205   4                {
+ 206   5                  key_setTime_deal(0);
+ 207   5                }
+ 208   4              break;
+ 209   4            }
+ 210   3            key_value=keys_flag;
+ 211   3          }
+ 212   2          else
+ 213   2          {
+ 214   3            switch(key_value)
+ 215   3            {
+ 216   4              case key_power:
+ 217   4                if(key_count>4)
+ 218   4                key_power_deal();
+ 219   4              break;
+ 220   4                
+ 221   4              case key_menu:
+ 222   4                if(key_count>4)
+ 223   4                key_menu_deal();
+ 224   4              break;
+ 225   4            }
+ 226   3            key_value=0;
+ 227   3            key_deal=0;
+ 228   3            key_count=0;
+ 229   3          }
+ 230   2        }
+ 231   1      }
+ 232          
+ 233          void key_Warm_deal()
+ 234          {
+ 235   1        if(error_b||error_b2)return;
+ 236   1        if(system_state!=DaiJi_state&&system_state!=Warm_state)return;
+ 237   1        if(key_count>=200)
+ 238   1        {
+ 239   2          key_count=0;
+ 240   2          if(system_state==DaiJi_state)
+C51 COMPILER V9.60.0.0   KEY                                                               09/19/2026 18:56:55 PAGE 5   
+
+ 241   2          {
+ 242   3          system_state=Warm_state;
+ 243   3            baowen_temp=baowen_9;
+ 244   3          Warm_Cnt=4320;
+ 245   3          Fun_Time=0;
+ 246   3          dsp_way=dsp_temp;
+ 247   3            if(dsp_wendu==baowen_temp)
+ 248   3              frist_baowen_temp=1;
+ 249   3            else
+ 250   3            frist_baowen_temp=0;
+ 251   3          No_operation_Time=250;
+ 252   3          }
+ 253   2          else if(system_state==Warm_state)
+ 254   2          system_state=DaiJi_state; 
+ 255   2          key_buz_b=1;
+ 256   2          key_deal=1;
+ 257   2          dsp_way=0;
+ 258   2          JiaXian_b=0;
+ 259   2        }
+ 260   1      }
+ 261          
+ 262          void key_Fan_deal()
+ 263          {
+ 264   1        if(error_b||error_b2)return;
+ 265   1        //if(system_state!=DaiJi_state&&system_state!=Warm_state)return;
+ 266   1        if(system_state==DaiJi_state||system_state==Warm_state||Menu==TiaoNai||Menu==ReTiao)
+ 267   1        {
+ 268   2          if(key_count>=200)
+ 269   2          {
+ 270   3            key_count=0;
+ 271   3            key_deal=1;
+ 272   3            key_buz_b=1;
+ 273   3            GuanJi_time=0;
+ 274   3            switch(system_state)
+ 275   3            {
+ 276   4              case DaiJi_state:
+ 277   4              case Menu_state:
+ 278   4                if(Fan_b)
+ 279   4                {
+ 280   5                  Fan_b=0;
+ 281   5                  CLR_Fan;
+ 282   5                }
+ 283   4                else
+ 284   4                {
+ 285   5                  Fan_b=1;
+ 286   5                  SET_Fan;
+ 287   5                }
+ 288   4              break;
+ 289   4              case Work_state:
+ 290   4                if(dsp_wendu>set_temp)
+ 291   4                {
+ 292   5                  if(Fan_b)
+ 293   5                  {
+ 294   6                    Fan_b=0;
+ 295   6                    CLR_Fan;
+ 296   6                  }
+ 297   5                  else
+ 298   5                  {
+ 299   6                    Fan_b=1;
+ 300   6                    SET_Fan;
+ 301   6                  }
+ 302   5                }
+C51 COMPILER V9.60.0.0   KEY                                                               09/19/2026 18:56:55 PAGE 6   
+
+ 303   4              break;
+ 304   4              case Warm_state:
+ 305   4                if(dsp_wendu>baowen_temp)
+ 306   4                {
+ 307   5                  if(Fan_b)
+ 308   5                  {
+ 309   6                    Fan_b=0;
+ 310   6                    CLR_Fan;
+ 311   6                  }
+ 312   5                  else
+ 313   5                  {
+ 314   6                    Fan_b=1;
+ 315   6                    SET_Fan;
+ 316   6                  }
+ 317   5                }
+ 318   4              break;
+ 319   4            }
+ 320   3          }
+ 321   2        }
+ 322   1      }
+ 323          
+ 324          void key_menu_deal()
+ 325          {
+ 326   1        if(system_state!=DaiJi_state&&system_state!=Menu_state&&system_state!=Work_state&&system_state!=Warm_stat
+             -e&&system_state!=YuYue_state)return;
+ 327   1        if(error_b||error_b2)return;
+ 328   1        if(TiHu_b)return;
+ 329   1        if(key_deal)return;
+ 330   1        if(system_state==Warm_state)
+ 331   1              Menu=0;
+ 332   1        if(++Menu>8)
+ 333   1        {
+ 334   2          Menu=1;
+ 335   2        }
+ 336   1        if(Menu==ZhuFei||Menu==ChuLv||Menu==TiaoNai||Menu==ReTiao)
+ 337   1              dsp_way=dsp_temp;
+ 338   1            else
+ 339   1              dsp_way=dsp_time;
+ 340   1            if(Menu==ReTiao||Menu==TiaoNai)
+ 341   1              set_temp=SetBaoWen_Tel[Menu];
+ 342   1            else
+ 343   1              set_temp=SetTemp_Tel[Menu];
+ 344   1        Work_Time=SetTime_Tel[Menu];
+ 345   1        baowen_temp=SetBaoWen_Tel[Menu];
+ 346   1      //      if(system_state==YuYue_state)
+ 347   1      //      {
+ 348   1      //        YuYue_b=0;
+ 349   1      //        YuYue_Time=0;
+ 350   1      //      }
+ 351   1            
+ 352   1        system_state=Menu_state;
+ 353   1        QuFan_Time=0;
+ 354   1        QuFan_b=0;
+ 355   1        key_deal=1;
+ 356   1        No_operation_Time=0;
+ 357   1        key_buz_b=1;
+ 358   1        GuanJi_time=0;
+ 359   1        BaoWen_JiaXian_100=0;
+ 360   1        du_97=0;
+ 361   1        ChuLv_daojishi=0;
+ 362   1        JiaXian_b=0;
+ 363   1        feiteng_b=0;
+C51 COMPILER V9.60.0.0   KEY                                                               09/19/2026 18:56:55 PAGE 7   
+
+ 364   1        gaoyuan_b=0;
+ 365   1        gaoyuan_time=0;
+ 366   1        gaoyuan_No=0;
+ 367   1      }
+ 368          
+ 369          void key_power_deal()
+ 370          {
+ 371   1        if(key_deal)return;
+ 372   1          switch(system_state)
+ 373   1        {
+ 374   2          case GuanJi_state:
+ 375   2          case BaoJing_state:
+ 376   2            system_state=DaiJi_state;
+ 377   2            fanDaiJi_Time=0;
+ 378   2            error_b2=error_b;
+ 379   2            error_b=0;
+ 380   2            Menu=0;
+ 381   2      //      if(adc_NTC_Temp>=97)
+ 382   2      //      dsp_wendu=adc_NTC_Temp;
+ 383   2            Buz_Start(16,0,1);
+ 384   2          if(system_state==GuanJi_state)
+ 385   2          {
+ 386   3            error_b2=0;
+ 387   3            error_b=0;
+ 388   3          }
+ 389   2          break;
+ 390   2          
+ 391   2          case DaiJi_state:
+ 392   2          case Menu_state:
+ 393   2          case Work_state:
+ 394   2          case Warm_state:
+ 395   2          case YuYue_state:
+ 396   2            if(system_state!=DaiJi_state)
+ 397   2            {
+ 398   3            system_state=DaiJi_state;
+ 399   3            Buz_Start(16,0,1);
+ 400   3            }
+ 401   2            else
+ 402   2            {
+ 403   3            system_state=GuanJi_state;
+ 404   3            Fan_b=0;
+ 405   3            CLR_Fan;
+ 406   3            Buz_Start(60,0,1);
+ 407   3            }
+ 408   2            error_b=0;
+ 409   2            fanDaiJi_Time=0;
+ 410   2            error_b2=0;
+ 411   2          break;
+ 412   2        }
+ 413   1            Work_Time=0;
+ 414   1            YuYue_Time=0;
+ 415   1            set_temp=0;
+ 416   1      //      set_time=0;
+ 417   1            YuYue_b=0;
+ 418   1            key_deal=1;
+ 419   1            feiteng_b=0;
+ 420   1            //key_buz_b=1;
+ 421   1            Menu=0;
+ 422   1            dsp_way=0;
+ 423   1            JiaXian_b=0;
+ 424   1            gaoyuan_b=0;
+ 425   1            gaoyuan_time=0;
+C51 COMPILER V9.60.0.0   KEY                                                               09/19/2026 18:56:55 PAGE 8   
+
+ 426   1            GuanJi_time=0;
+ 427   1            ChiXu_TiHu_time=0;
+ 428   1            JiaXian_time=0;
+ 429   1            baowen_temp=0;
+ 430   1            BaoWen_JiaXian_100=0;
+ 431   1            du_97=0;
+ 432   1            ChuLv_daojishi=0;
+ 433   1            gaoyuan_No=0;
+ 434   1      }
+ 435          
+ 436          void key_setTime_Longdeal(uchar select)
+ 437          {
+ 438   1        if(error_b||error_b2)return;
+ 439   1        if(TiHu_b)return;
+ 440   1        
+ 441   1        if(system_state==Warm_state)
+ 442   1        {
+ 443   2      //    key_deal=1;
+ 444   2          QuFan_Time=0;
+ 445   2          QuFan_b=0;
+ 446   2          BaoWen_Jia_time=0;
+ 447   2          warm_jiaxian_time=0;
+ 448   2          No_operation_Time=0;
+ 449   2          baowen_buz=1;
+ 450   2      //    frist_baowen_temp=0;
+ 451   2      //    if(JiaXian_b)
+ 452   2      //    {
+ 453   2      //    duibi_time=0;
+ 454   2      //    dsp_wendu=baowen_temp;
+ 455   2      //    }
+ 456   2          JiaXian_b=0;
+ 457   2          if(select)
+ 458   2          {
+ 459   3            if(baowen_temp>=95)
+ 460   3              baowen_temp=35;
+ 461   3            else
+ 462   3            {
+ 463   4              Jian_baowen_xianzhi=0;
+ 464   4              baowen_temp+=1;
+ 465   4            }
+ 466   3          }
+ 467   2          else
+ 468   2          {
+ 469   3            if(baowen_temp<=35)
+ 470   3              baowen_temp=95;
+ 471   3            else
+ 472   3            {
+ 473   4              baowen_temp-=1;
+ 474   4              Jian_baowen_xianzhi=1;
+ 475   4            }
+ 476   3          }
+ 477   2        }
+ 478   1        
+ 479   1      
+ 480   1        if((Menu==YuYue&&dsp_way==dsp_time)||system_state==YuYue_state)
+ 481   1        {
+ 482   2          if(select)
+ 483   2          {
+ 484   3            if(YuYue_Time>=1440)
+ 485   3              YuYue_Time=30;
+ 486   3            else
+ 487   3            {
+C51 COMPILER V9.60.0.0   KEY                                                               09/19/2026 18:56:55 PAGE 9   
+
+ 488   4              if(YuYue_Time%60<30&&YuYue_Time%60!=0)
+ 489   4                YuYue_Time+=(30-YuYue_Time%60);
+ 490   4              else if(YuYue_Time%60>30)
+ 491   4                YuYue_Time+=(60-YuYue_Time%60);
+ 492   4              else
+ 493   4              YuYue_Time+=30;
+ 494   4            }
+ 495   3          }
+ 496   2          else
+ 497   2          {
+ 498   3            if(YuYue_Time<=30)
+ 499   3              YuYue_Time=1440;
+ 500   3            else
+ 501   3            {
+ 502   4              if(YuYue_Time%60<30&&YuYue_Time%60!=0)
+ 503   4                YuYue_Time-=(YuYue_Time%60);
+ 504   4              else if(YuYue_Time%60>30)
+ 505   4                YuYue_Time-=(YuYue_Time%60);
+ 506   4              else
+ 507   4              YuYue_Time-=30;
+ 508   4            }
+ 509   3          }
+ 510   2      //    YuYue_b=1;
+ 511   2      //    key_deal=1;
+ 512   2          QuFan_Time=0;
+ 513   2          QuFan_b=0;
+ 514   2          return;
+ 515   2        }
+ 516   1        if(Menu==ZhuFei||Menu==ChuLv)return;
+ 517   1        if(system_state!=Menu_state&&Menu!=ReTiao&&Menu!=TiaoNai)return;
+ 518   1         if(dsp_way==dsp_time&&Menu!=YuYue)
+ 519   1        {
+ 520   2          if(select)
+ 521   2          {
+ 522   3            if(Work_Time>=Set_Max[Menu])
+ 523   3            {
+ 524   4              Work_Time=Set_Min[Menu];
+ 525   4            }
+ 526   3            else
+ 527   3            {
+ 528   4              if(Menu==HuaCha)
+ 529   4              Work_Time+=5; 
+ 530   4              else
+ 531   4              Work_Time+=30;
+ 532   4            }
+ 533   3          }
+ 534   2          else
+ 535   2          {
+ 536   3            if(Work_Time<=Set_Min[Menu])
+ 537   3            {
+ 538   4              Work_Time=Set_Max[Menu];
+ 539   4            }
+ 540   3            else
+ 541   3            {
+ 542   4              if(Menu==HuaCha)
+ 543   4              Work_Time-=5; 
+ 544   4              else
+ 545   4              Work_Time-=30;
+ 546   4            }
+ 547   3          }
+ 548   2        }
+ 549   1        else if(dsp_way==dsp_temp)
+C51 COMPILER V9.60.0.0   KEY                                                               09/19/2026 18:56:55 PAGE 10  
+
+ 550   1        {
+ 551   2            if(select)
+ 552   2            {
+ 553   3              if(set_temp>=Set_Max[Menu])
+ 554   3              {
+ 555   4                set_temp=Set_Min[Menu];
+ 556   4              }
+ 557   3              else
+ 558   3              {
+ 559   4                set_temp+=1;
+ 560   4              }
+ 561   3            }
+ 562   2            else
+ 563   2            {
+ 564   3              if(set_temp<=Set_Min[Menu])
+ 565   3              {
+ 566   4                set_temp=Set_Max[Menu];
+ 567   4              }
+ 568   3              else
+ 569   3              {
+ 570   4                set_temp-=1;
+ 571   4              }
+ 572   3            }
+ 573   2        }
+ 574   1        No_operation_Time=0;
+ 575   1      //  key_deal=1;
+ 576   1        GuanJi_time=0;
+ 577   1        QuFan_Time=0;
+ 578   1        QuFan_b=0;
+ 579   1      }
+ 580          
+ 581          void key_setTime_deal(uchar select)
+ 582          {
+ 583   1        if(error_b||error_b2)return;
+ 584   1        if(TiHu_b)return;
+ 585   1        
+ 586   1        //if(system_state!=GuanJi_state&&system_state!=BaoJing_state)
+ 587   1        
+ 588   1        if(system_state==Warm_state)
+ 589   1        {
+ 590   2          key_deal=1;
+ 591   2          QuFan_Time=0;
+ 592   2          QuFan_b=0;
+ 593   2          BaoWen_Jia_time=0;
+ 594   2          warm_jiaxian_time=0;
+ 595   2          No_operation_Time=0;
+ 596   2          frist_baowen_temp=0;
+ 597   2          baowen_buz=1;
+ 598   2      //    if(JiaXian_b)
+ 599   2      //    {
+ 600   2      //    duibi_time=0;
+ 601   2      //    dsp_wendu=baowen_temp;
+ 602   2      //    }
+ 603   2          JiaXian_b=0;
+ 604   2          if(select)
+ 605   2          {
+ 606   3            if(baowen_temp>=95)
+ 607   3              baowen_temp=35;
+ 608   3            else
+ 609   3            {
+ 610   4              Jian_baowen_xianzhi=0;
+ 611   4              baowen_temp+=1;
+C51 COMPILER V9.60.0.0   KEY                                                               09/19/2026 18:56:55 PAGE 11  
+
+ 612   4            }
+ 613   3          }
+ 614   2          else
+ 615   2          {
+ 616   3            if(baowen_temp<=35)
+ 617   3              baowen_temp=95;
+ 618   3            else
+ 619   3            {
+ 620   4              baowen_temp-=1;
+ 621   4              Jian_baowen_xianzhi=1;
+ 622   4            }
+ 623   3          }
+ 624   2          key_buz_b=1;
+ 625   2        }
+ 626   1        
+ 627   1        if((Menu==YuYue&&dsp_way==dsp_time)||system_state==YuYue_state)
+ 628   1        {
+ 629   2          if(select)
+ 630   2          {
+ 631   3            if(YuYue_Time>=1440)
+ 632   3              YuYue_Time=30;
+ 633   3            else
+ 634   3            {
+ 635   4              if(YuYue_Time%60<30&&YuYue_Time%60!=0)
+ 636   4                YuYue_Time+=(30-YuYue_Time%60);
+ 637   4              else if(YuYue_Time%60>30)
+ 638   4                YuYue_Time+=(60-YuYue_Time%60);
+ 639   4              else
+ 640   4              YuYue_Time+=30;
+ 641   4            }
+ 642   3          }
+ 643   2          else
+ 644   2          {
+ 645   3            if(YuYue_Time<=30)
+ 646   3              YuYue_Time=1440;
+ 647   3            else
+ 648   3            {
+ 649   4              if(YuYue_Time%60<30&&YuYue_Time%60!=0)
+ 650   4                YuYue_Time-=(YuYue_Time%60);
+ 651   4              else if(YuYue_Time%60>30)
+ 652   4                YuYue_Time-=(YuYue_Time%30);
+ 653   4              else
+ 654   4              YuYue_Time-=30;
+ 655   4            }
+ 656   3          }
+ 657   2          YuYue_b=1;
+ 658   2          key_buz_b=1;
+ 659   2          key_deal=1;
+ 660   2          QuFan_Time=0;
+ 661   2          QuFan_b=0;
+ 662   2          return;
+ 663   2        }
+ 664   1        if(Menu==ZhuFei||Menu==ChuLv)return;
+ 665   1        if(system_state!=Menu_state&&Menu!=ReTiao&&Menu!=TiaoNai)return;
+ 666   1        if(Menu==ZhuFei||Menu==ChuLv||Menu==TiaoNai||Menu==ReTiao)
+ 667   1              dsp_way=dsp_temp;
+ 668   1            else
+ 669   1              dsp_way=dsp_time;
+ 670   1         if(dsp_way==dsp_time&&Menu!=YuYue)
+ 671   1        {
+ 672   2          if(select)
+ 673   2          {
+C51 COMPILER V9.60.0.0   KEY                                                               09/19/2026 18:56:55 PAGE 12  
+
+ 674   3            if(Work_Time>=Set_Max[Menu])
+ 675   3            {
+ 676   4              Work_Time=Set_Min[Menu];
+ 677   4            }
+ 678   3            else
+ 679   3            {
+ 680   4              if(Menu==HuaCha)
+ 681   4              Work_Time+=5; 
+ 682   4              else
+ 683   4              Work_Time+=30;
+ 684   4            }
+ 685   3          }
+ 686   2          else
+ 687   2          {
+ 688   3            if(Work_Time<=Set_Min[Menu])
+ 689   3            {
+ 690   4              Work_Time=Set_Max[Menu];
+ 691   4            }
+ 692   3            else
+ 693   3            {
+ 694   4              if(Menu==HuaCha)
+ 695   4              Work_Time-=5; 
+ 696   4              else
+ 697   4              Work_Time-=30;
+ 698   4            }
+ 699   3          }
+ 700   2        }
+ 701   1        else if(dsp_way==dsp_temp)
+ 702   1        {
+ 703   2          JiaXian_b=0;
+ 704   2            if(select)
+ 705   2            {
+ 706   3              if(set_temp>=Set_Max[Menu])
+ 707   3              {
+ 708   4                set_temp=Set_Min[Menu];
+ 709   4              }
+ 710   3              else
+ 711   3              {
+ 712   4                set_temp+=1;
+ 713   4              }
+ 714   3            }
+ 715   2            else
+ 716   2            {
+ 717   3              if(set_temp<=Set_Min[Menu])
+ 718   3              {
+ 719   4                set_temp=Set_Max[Menu];
+ 720   4              }
+ 721   3              else
+ 722   3              {
+ 723   4                set_temp-=1;
+ 724   4              }
+ 725   3            }
+ 726   2        }
+ 727   1      //  system_state=Menu_state;
+ 728   1        key_buz_b=1;
+ 729   1        No_operation_Time=0;
+ 730   1        key_deal=1;
+ 731   1        GuanJi_time=0;
+ 732   1        QuFan_Time=0;
+ 733   1        QuFan_b=0;
+ 734   1        frist_baowen_temp=0;
+ 735   1        warm_jiaxian_time=0;
+C51 COMPILER V9.60.0.0   KEY                                                               09/19/2026 18:56:55 PAGE 13  
+
+ 736   1        baowen_buz=1;
+ 737   1      }
+ 738          
+ 739          
+ 740          void Key_handle(void)
+ 741          {
+ 742   1         if(key_buz_b)
+ 743   1        {
+ 744   2          key_buz_b=0;
+ 745   2          Buz_Start(12,0,1);
+ 746   2        }
+ 747   1      }
+ 748          
+ 749          
+ 750          
+ 751          
+ 752          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3329    ----
+   CONSTANT SIZE    =     45    ----
+   XDATA SIZE       =     76    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       2
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

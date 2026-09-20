@@ -1,0 +1,1658 @@
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE DSP
+OBJECT MODULE PLACED IN .\Output\dsp.obj
+COMPILER INVOKED BY: D:\Keil_51\C51\BIN\C51.EXE dsp.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Inc;.\User) DEBUG PRINT(.\L
+                    -ist\dsp.lst) TABS(2) OBJECT(.\Output\dsp.obj)
+
+line level    source
+
+   1          #include "Config.h"  //包含芯片寄存器、宏定义(SET_PB0_IO_OUT,SEG1等)
+   2          
+   3          //各个系统状态对应的显示处理函数声明
+   4          void  dsp_ShangDian_deal(); //上电画面
+   5          void  dsp_DaiJi_deal();   //待机
+   6          void  dsp_Menu_deal();    //菜单选择
+   7          void dps_PaoMaLed_deal(); //跑马灯
+   8          void  dsp_Work_deal();    //加热工作
+   9          void Menu_LED_deal();   //功能菜单指示灯
+  10          void  dsp_YuYue_deal(); //预约模式
+  11          void  dsp_WarmPaoMa_deal();//保温跑马灯
+  12          void  dsp_Warm_deal();    //保温模式
+  13          void  dsp_error_deal();   //故障报错
+  14          void dsp_ZiJian_deal();   //自检模式
+  15          void ZiJianMenu_LED_deal();//自检指示灯
+  16          void  dsp_huxi_deal();    //呼吸灯
+  17          void DiYaLiKaiGuan_deal();  //低压力处理
+  18          void dsp_GuanJi_deal();   //关机
+  19          
+  20          //xdata:8051 外部RAM，把大变量放到片外，节省内部RAM
+  21          unsigned char xdata  disp_scannum;    //点阵扫描-行号 0~7
+  22          unsigned char xdata  disp_scannum2; //点阵扫描-列号 0~6
+  23          uchar xdata CL_Sec;           //除氯倒计时秒
+  24          uchar xdata CL_Min;           //除氯倒计时分
+  25          uint xdata GuanJi_time;         //无操作自动关机计时
+  26          uchar xdata disp_tel[DisData_Len];    //点阵原始显示缓存
+  27          uchar xdata disp_tel2[DisData_Len]; //点阵扫描专用缓存(拷贝disp_tel)
+  28          uchar xdata b_sys_5ms;          //5ms系统标志位
+  29          uchar xdata QuFan_b;          //闪烁标志位，0/1翻转，用来做LED闪烁
+  30          uint xdata YuYue_Time;          //预约剩余时间
+  31          uchar xdata YuYue_b;          //预约使能标记
+  32          uchar xdata dsp_way;          //显示模式：温度 /时间
+  33          uchar xdata set_temp;         //目标设定温度
+  34          uint xdata Work_Time;         //工作倒计时
+  35          uchar xdata dsp_wendu;          //屏幕显示温度(经过滤波、防抖后的温度，不是原始ADC)
+  36          uchar xdata duibi_time;         //温度偏差计时
+  37          uint xdata duibi_time2;
+  38          uchar xdata QuFan_Time;         //闪烁定时计数器
+  39          uchar xdata No_operation_Time;      //按键无操作计时
+  40          uchar xdata max_wendu;          //最高温度记录
+  41          uchar xdata buz_time_delay;       //蜂鸣器消抖延时
+  42          uchar xdata system_state;       //整机运行状态机：上电/待机/工作/保温/故障...
+  43          uchar xdata All_dspTime;        //上电画面保持时间
+  44          uint xdata JiaXian_time;        //温度加速爬升计时
+  45          uchar xdata du_97;            //温度>97℃标志(做沸腾延时逻辑)
+  46          uchar xdata BaoWen_JiaXian_100;     //保温温度补偿标志
+  47          uchar xdata BaoWen_Jia_time;      //保温计时
+  48          uchar xdata feiteng_b;          //水沸腾标记
+  49          //uchar xdata guoling_b;
+  50          //const unsigned int smg_tt[]={0,0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};
+  51          //code unsigned int SMG_Tel_1[] = {SMG1_0,SMG1_1,SMG1_2,SMG1_3,SMG1_4,SMG1_5,SMG1_6,SMG1_7,SMG1_8,SMG1_9};
+  52          
+  53          //const unsigned int SMG_Tel_2[] = {SMG2_0,SMG2_1,SMG2_2,SMG2_3,SMG2_4,SMG2_5,SMG2_6,SMG2_7,SMG2_8,SMG2_9}
+             -;
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 2   
+
+  54          
+  55          //const unsigned int SMG_Tel_3[] = {SMG3_0,SMG3_1,SMG3_2,SMG3_3,SMG3_4,SMG3_5,SMG3_6,SMG3_7,SMG3_8,SMG3_9}
+             -;
+  56          
+  57          //const unsigned int SMG_Tel_4[] = {SMG4_0,SMG4_1,SMG4_2,SMG4_3,SMG4_4,SMG4_5,SMG4_6,SMG4_7,SMG4_8,SMG4_9}
+             -;
+  58          void Disp_gpio_out_init()
+  59          {
+  60   1          
+  61   1        
+  62   1        SET_PB0_IO_IN;   
+  63   1        SET_PB1_IO_IN;
+  64   1        SET_PB2_IO_IN;
+  65   1        SET_PB3_IO_IN;
+  66   1        SET_PB4_IO_IN;
+  67   1        SET_PB5_IO_IN;
+  68   1        SET_PB6_IO_IN;
+  69   1        SET_PB7_IO_IN;
+  70   1        
+  71   1          SET_SEG4;
+  72   1          SET_SEG1;
+  73   1          SET_SEG2;
+  74   1          SET_SEG3;
+  75   1          SET_SEG5;
+  76   1          SET_SEG6;
+  77   1          SET_SEG7;
+  78   1          SET_SEG8;
+  79   1      }
+  80          
+  81          
+  82          
+  83          
+  84          void Delay_Us(uint us)//1--2.38us@12MHz;10-11.8us@12MHz;100-106us@12MHz;1000-1.045ms
+  85          {
+  86   1        for (; us > 0; us--)
+  87   1        { 
+  88   2          WDT_CTRL = 0x07;
+  89   2        }   
+  90   1      }
+  91          
+  92          
+  93          
+  94          
+  95          
+  96          void Disp_scan(void)
+  97          {
+  98   1                            
+  99   1        Disp_gpio_out_init();
+ 100   1      
+ 101   1        switch(disp_scannum)
+ 102   1        {
+ 103   2          case 0:
+ 104   2            SET_PB0_IO_OUT;
+ 105   2          SET_SEG1;
+ 106   2          switch(disp_scannum2)
+ 107   2          {
+ 108   3            case 0:
+ 109   3            if(disp_tel2[1]&0x01){
+ 110   4                   SET_PB1_IO_OUT;CLR_SEG2;
+ 111   4            }   
+ 112   3            disp_scannum2++;
+ 113   3            break;
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 3   
+
+ 114   3            
+ 115   3            case 1:
+ 116   3            if(disp_tel2[2]&0x01){
+ 117   4                   SET_PB2_IO_OUT;CLR_SEG3;
+ 118   4            }
+ 119   3            disp_scannum2++;
+ 120   3            break;
+ 121   3            
+ 122   3            case 2:
+ 123   3            if(disp_tel2[3]&0x01){
+ 124   4                   SET_PB3_IO_OUT;CLR_SEG4;
+ 125   4            }
+ 126   3            disp_scannum2++;
+ 127   3            break;
+ 128   3            
+ 129   3            case 3:
+ 130   3            if(disp_tel2[4]&0x01){
+ 131   4                   SET_PB4_IO_OUT;CLR_SEG5;
+ 132   4            }
+ 133   3            disp_scannum2++;
+ 134   3            break;
+ 135   3            
+ 136   3            case 4:
+ 137   3            if(disp_tel2[5]&0x01){
+ 138   4                   SET_PB5_IO_OUT;CLR_SEG6;
+ 139   4            }
+ 140   3            disp_scannum2++;
+ 141   3            break;
+ 142   3            
+ 143   3            case 5:
+ 144   3            if(disp_tel2[6]&0x01){
+ 145   4                   SET_PB6_IO_OUT;CLR_SEG7;
+ 146   4            }
+ 147   3            disp_scannum2++;
+ 148   3            break;
+ 149   3            
+ 150   3            case 6:
+ 151   3            if(disp_tel2[7]&0x01){
+ 152   4                   SET_PB7_IO_OUT;CLR_SEG8;
+ 153   4            } 
+ 154   3            disp_scannum++;
+ 155   3            disp_scannum2=0;
+ 156   3            break;
+ 157   3          }
+ 158   2          break;
+ 159   2          
+ 160   2          case 1:
+ 161   2            SET_PB1_IO_OUT;
+ 162   2          SET_SEG2;
+ 163   2          switch(disp_scannum2)
+ 164   2          {
+ 165   3            case 0:
+ 166   3            if(disp_tel2[1]&0x02){
+ 167   4                   SET_PB0_IO_OUT;CLR_SEG1;
+ 168   4            }   
+ 169   3            disp_scannum2++;
+ 170   3            break;
+ 171   3            
+ 172   3            case 1:
+ 173   3            if(disp_tel2[2]&0x02){
+ 174   4                   SET_PB2_IO_OUT;CLR_SEG3;
+ 175   4            }
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 4   
+
+ 176   3            disp_scannum2++;
+ 177   3            break;
+ 178   3            
+ 179   3            case 2:
+ 180   3            if(disp_tel2[3]&0x02){
+ 181   4                   SET_PB3_IO_OUT;CLR_SEG4;
+ 182   4            }
+ 183   3            disp_scannum2++;
+ 184   3            break;
+ 185   3            
+ 186   3            case 3:
+ 187   3            if(disp_tel2[4]&0x02){
+ 188   4                   SET_PB4_IO_OUT;CLR_SEG5;
+ 189   4            }
+ 190   3            disp_scannum2++;
+ 191   3            break;
+ 192   3            
+ 193   3            case 4:
+ 194   3            if(disp_tel2[5]&0x02){
+ 195   4                   SET_PB5_IO_OUT;CLR_SEG6;
+ 196   4            }
+ 197   3            disp_scannum2++;
+ 198   3            break;
+ 199   3            
+ 200   3            case 5:
+ 201   3            if(disp_tel2[6]&0x02){
+ 202   4                   SET_PB6_IO_OUT;CLR_SEG7;
+ 203   4            }
+ 204   3            disp_scannum2++;
+ 205   3            break;
+ 206   3            
+ 207   3            case 6:
+ 208   3            if(disp_tel2[7]&0x02){
+ 209   4                   SET_PB7_IO_OUT;CLR_SEG8;
+ 210   4            } 
+ 211   3            disp_scannum++;
+ 212   3            disp_scannum2=0;
+ 213   3            break;
+ 214   3          }
+ 215   2          break;
+ 216   2          
+ 217   2          case 2:
+ 218   2            SET_PB2_IO_OUT;
+ 219   2          SET_SEG3;
+ 220   2          switch(disp_scannum2)
+ 221   2          {
+ 222   3            case 0:
+ 223   3            if(disp_tel2[1]&0x04){
+ 224   4                   SET_PB0_IO_OUT;CLR_SEG1;
+ 225   4            }   
+ 226   3            disp_scannum2++;
+ 227   3            break;
+ 228   3            
+ 229   3            case 1:
+ 230   3            if(disp_tel2[2]&0x04){
+ 231   4                   SET_PB1_IO_OUT;CLR_SEG2;
+ 232   4            }
+ 233   3            disp_scannum2++;
+ 234   3            break;
+ 235   3            
+ 236   3            case 2:
+ 237   3            if(disp_tel2[3]&0x04){
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 5   
+
+ 238   4                   SET_PB3_IO_OUT;CLR_SEG4;
+ 239   4            }
+ 240   3            disp_scannum2++;
+ 241   3            break;
+ 242   3            
+ 243   3            case 3:
+ 244   3            if(disp_tel2[4]&0x04){
+ 245   4                   SET_PB4_IO_OUT;CLR_SEG5;
+ 246   4            }
+ 247   3            disp_scannum2++;
+ 248   3            break;
+ 249   3            
+ 250   3            case 4:
+ 251   3            if(disp_tel2[5]&0x04){
+ 252   4                   SET_PB5_IO_OUT;CLR_SEG6;
+ 253   4            }
+ 254   3            disp_scannum2++;
+ 255   3            break;
+ 256   3            
+ 257   3            case 5:
+ 258   3            if(disp_tel2[6]&0x04){
+ 259   4                   SET_PB6_IO_OUT;CLR_SEG7;
+ 260   4            }
+ 261   3            disp_scannum2++;
+ 262   3            break;
+ 263   3            
+ 264   3            case 6:
+ 265   3            if(disp_tel2[7]&0x04){
+ 266   4                   SET_PB7_IO_OUT;CLR_SEG8;
+ 267   4            } 
+ 268   3            disp_scannum++;
+ 269   3            disp_scannum2=0;
+ 270   3            break;
+ 271   3          }
+ 272   2          break;
+ 273   2          
+ 274   2          case 3:
+ 275   2            SET_PB3_IO_OUT;
+ 276   2          SET_SEG4;
+ 277   2          switch(disp_scannum2)
+ 278   2          {
+ 279   3            case 0:
+ 280   3            if(disp_tel2[1]&0x08){
+ 281   4                   SET_PB0_IO_OUT;CLR_SEG1;
+ 282   4            }   
+ 283   3            disp_scannum2++;
+ 284   3            break;
+ 285   3            
+ 286   3            case 1:
+ 287   3            if(disp_tel2[2]&0x08){
+ 288   4                   SET_PB1_IO_OUT;CLR_SEG2;
+ 289   4            }
+ 290   3            disp_scannum2++;
+ 291   3            break;
+ 292   3            
+ 293   3            case 2:
+ 294   3            if(disp_tel2[3]&0x08){
+ 295   4                   SET_PB2_IO_OUT;CLR_SEG3;
+ 296   4            }
+ 297   3            disp_scannum2++;
+ 298   3            break;
+ 299   3            
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 6   
+
+ 300   3            case 3:
+ 301   3            if(disp_tel2[4]&0x08){
+ 302   4                   SET_PB4_IO_OUT;CLR_SEG5;
+ 303   4            }
+ 304   3            disp_scannum2++;
+ 305   3            break;
+ 306   3            
+ 307   3            case 4:
+ 308   3            if(disp_tel2[5]&0x08){
+ 309   4                   SET_PB5_IO_OUT;CLR_SEG6;
+ 310   4            }
+ 311   3            disp_scannum2++;
+ 312   3            break;
+ 313   3            
+ 314   3            case 5:
+ 315   3            if(disp_tel2[6]&0x08){
+ 316   4                   SET_PB6_IO_OUT;CLR_SEG7;
+ 317   4            }
+ 318   3            disp_scannum2++;
+ 319   3            break;
+ 320   3            
+ 321   3            case 6:
+ 322   3            if(disp_tel2[7]&0x08){
+ 323   4                   SET_PB7_IO_OUT;CLR_SEG8;
+ 324   4            } 
+ 325   3            disp_scannum++;
+ 326   3            disp_scannum2=0;
+ 327   3            break;
+ 328   3          }
+ 329   2          break;
+ 330   2          
+ 331   2          case 4:
+ 332   2            SET_PB4_IO_OUT;
+ 333   2          SET_SEG5;
+ 334   2          switch(disp_scannum2)
+ 335   2          {
+ 336   3            case 0:
+ 337   3            if(disp_tel2[1]&0x10){
+ 338   4                   SET_PB0_IO_OUT;CLR_SEG1;
+ 339   4            }   
+ 340   3            disp_scannum2++;
+ 341   3            break;
+ 342   3            
+ 343   3            case 1:
+ 344   3            if(disp_tel2[2]&0x10){
+ 345   4                   SET_PB1_IO_OUT;CLR_SEG2;
+ 346   4            }
+ 347   3            disp_scannum2++;
+ 348   3            break;
+ 349   3            
+ 350   3            case 2:
+ 351   3            if(disp_tel2[3]&0x10){
+ 352   4                   SET_PB2_IO_OUT;CLR_SEG3;
+ 353   4            }
+ 354   3            disp_scannum2++;
+ 355   3            break;
+ 356   3            
+ 357   3            case 3:
+ 358   3            if(disp_tel2[4]&0x10){
+ 359   4                   SET_PB3_IO_OUT;CLR_SEG4;
+ 360   4            }
+ 361   3            disp_scannum2++;
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 7   
+
+ 362   3            break;
+ 363   3            
+ 364   3            case 4:
+ 365   3            if(disp_tel2[5]&0x10){
+ 366   4                   SET_PB5_IO_OUT;CLR_SEG6;
+ 367   4            }
+ 368   3            disp_scannum2++;
+ 369   3            break;
+ 370   3            
+ 371   3            case 5:
+ 372   3            if(disp_tel2[6]&0x10){
+ 373   4                   SET_PB6_IO_OUT;CLR_SEG7;
+ 374   4            }
+ 375   3            disp_scannum2++;
+ 376   3            break;
+ 377   3            
+ 378   3            case 6:
+ 379   3            if(disp_tel2[7]&0x10){
+ 380   4                   SET_PB7_IO_OUT;CLR_SEG8;
+ 381   4            } 
+ 382   3            disp_scannum++;
+ 383   3            disp_scannum2=0;
+ 384   3            break;
+ 385   3          }
+ 386   2          break;
+ 387   2          
+ 388   2          case 5:
+ 389   2            SET_PB5_IO_OUT;
+ 390   2          SET_SEG6;
+ 391   2          switch(disp_scannum2)
+ 392   2          {
+ 393   3            case 0:
+ 394   3            if(disp_tel2[1]&0x20){
+ 395   4                   SET_PB0_IO_OUT;CLR_SEG1;
+ 396   4            }   
+ 397   3            disp_scannum2++;
+ 398   3            break;
+ 399   3            
+ 400   3            case 1:
+ 401   3            if(disp_tel2[2]&0x20){
+ 402   4                   SET_PB1_IO_OUT;CLR_SEG2;
+ 403   4            }
+ 404   3            disp_scannum2++;
+ 405   3            break;
+ 406   3            
+ 407   3            case 2:
+ 408   3            if(disp_tel2[3]&0x20){
+ 409   4                   SET_PB2_IO_OUT;CLR_SEG3;
+ 410   4            }
+ 411   3            disp_scannum2++;
+ 412   3            break;
+ 413   3            
+ 414   3            case 3:
+ 415   3            if(disp_tel2[4]&0x20){
+ 416   4                   SET_PB3_IO_OUT;CLR_SEG4;
+ 417   4            }
+ 418   3            disp_scannum2++;
+ 419   3            break;
+ 420   3            
+ 421   3            case 4:
+ 422   3            if(disp_tel2[5]&0x20){
+ 423   4                   SET_PB4_IO_OUT;CLR_SEG5;
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 8   
+
+ 424   4            }
+ 425   3            disp_scannum2++;
+ 426   3            break;
+ 427   3            
+ 428   3            case 5:
+ 429   3            if(disp_tel2[6]&0x20){
+ 430   4                   SET_PB6_IO_OUT;CLR_SEG7;
+ 431   4            }
+ 432   3            disp_scannum2++;
+ 433   3            break;
+ 434   3            
+ 435   3            case 6:
+ 436   3            if(disp_tel2[7]&0x20){
+ 437   4                   SET_PB7_IO_OUT;CLR_SEG8;
+ 438   4            } 
+ 439   3            disp_scannum++;
+ 440   3            disp_scannum2=0;
+ 441   3            break;
+ 442   3          }
+ 443   2          break;
+ 444   2          
+ 445   2          case 6:
+ 446   2            SET_PB6_IO_OUT;
+ 447   2          SET_SEG7;
+ 448   2          switch(disp_scannum2)
+ 449   2          {
+ 450   3            case 0:
+ 451   3            if(disp_tel2[1]&0x40){
+ 452   4                   SET_PB0_IO_OUT;CLR_SEG1;
+ 453   4            }   
+ 454   3            disp_scannum2++;
+ 455   3            break;
+ 456   3            
+ 457   3            case 1:
+ 458   3            if(disp_tel2[2]&0x40){
+ 459   4                   SET_PB1_IO_OUT;CLR_SEG2;
+ 460   4            }
+ 461   3            disp_scannum2++;
+ 462   3            break;
+ 463   3            
+ 464   3            case 2:
+ 465   3            if(disp_tel2[3]&0x40){
+ 466   4                   SET_PB2_IO_OUT;CLR_SEG3;
+ 467   4            }
+ 468   3            disp_scannum2++;
+ 469   3            break;
+ 470   3            
+ 471   3            case 3:
+ 472   3            if(disp_tel2[4]&0x40){
+ 473   4                   SET_PB3_IO_OUT;CLR_SEG4;
+ 474   4            }
+ 475   3            disp_scannum2++;
+ 476   3            break;
+ 477   3            
+ 478   3            case 4:
+ 479   3            if(disp_tel2[5]&0x40){
+ 480   4                   SET_PB4_IO_OUT;CLR_SEG5;
+ 481   4            }
+ 482   3            disp_scannum2++;
+ 483   3            break;
+ 484   3            
+ 485   3            case 5:
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 9   
+
+ 486   3            if(disp_tel2[6]&0x40){
+ 487   4                   SET_PB5_IO_OUT;CLR_SEG6;
+ 488   4            }
+ 489   3            disp_scannum2++;
+ 490   3            break;
+ 491   3            
+ 492   3            case 6:
+ 493   3            if(disp_tel2[7]&0x40){
+ 494   4                   SET_PB7_IO_OUT;CLR_SEG8;
+ 495   4            } 
+ 496   3            disp_scannum++;
+ 497   3            disp_scannum2=0;
+ 498   3            break;
+ 499   3          }
+ 500   2          break;
+ 501   2          
+ 502   2          case 7:
+ 503   2            SET_PB7_IO_OUT;
+ 504   2          SET_SEG8;
+ 505   2          switch(disp_scannum2)
+ 506   2          {
+ 507   3            case 0:
+ 508   3            if(disp_tel2[1]&0x80){
+ 509   4                   SET_PB0_IO_OUT;CLR_SEG1;
+ 510   4            }   
+ 511   3            disp_scannum2++;
+ 512   3            break;
+ 513   3            
+ 514   3            case 1:
+ 515   3            if(disp_tel2[2]&0x80){
+ 516   4                   SET_PB1_IO_OUT;CLR_SEG2;
+ 517   4            }
+ 518   3            disp_scannum2++;
+ 519   3            break;
+ 520   3            
+ 521   3            case 2:
+ 522   3            if(disp_tel2[3]&0x80){
+ 523   4                   SET_PB2_IO_OUT;CLR_SEG3;
+ 524   4            }
+ 525   3            disp_scannum2++;
+ 526   3            break;
+ 527   3            
+ 528   3            case 3:
+ 529   3            if(disp_tel2[4]&0x80){
+ 530   4                   SET_PB3_IO_OUT;CLR_SEG4;
+ 531   4            }
+ 532   3            disp_scannum2++;
+ 533   3            break;
+ 534   3            
+ 535   3            case 4:
+ 536   3            if(disp_tel2[5]&0x80){
+ 537   4                   SET_PB4_IO_OUT;CLR_SEG5;
+ 538   4            }
+ 539   3            disp_scannum2++;
+ 540   3            break;
+ 541   3            
+ 542   3            case 5:
+ 543   3            if(disp_tel2[6]&0x80){
+ 544   4                   SET_PB5_IO_OUT;CLR_SEG6;
+ 545   4            }
+ 546   3            disp_scannum2++;
+ 547   3            break;
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 10  
+
+ 548   3            
+ 549   3            case 6:
+ 550   3            if(disp_tel2[7]&0x80){
+ 551   4                   SET_PB6_IO_OUT;CLR_SEG7;
+ 552   4            } 
+ 553   3            disp_scannum=0;
+ 554   3            disp_scannum2=0;
+ 555   3            break;
+ 556   3          } 
+ 557   2          break;
+ 558   2        }
+ 559   1      
+ 560   1            
+ 561   1        }
+ 562          
+ 563          
+ 564          void Disp_handle(void)
+ 565          {
+ 566   1          disp_tel2[0] =disp_tel[0];
+ 567   1          disp_tel2[1] =disp_tel[1];
+ 568   1          disp_tel2[2] =disp_tel[2];
+ 569   1          disp_tel2[3] =disp_tel[3];
+ 570   1          disp_tel2[4] =disp_tel[4];
+ 571   1          disp_tel2[5] =disp_tel[5];
+ 572   1          disp_tel2[6] =disp_tel[6];
+ 573   1          disp_tel2[7] =disp_tel[7];
+ 574   1          disp_tel2[8] =disp_tel[8];
+ 575   1      }
+ 576          
+ 577          void Disp_All_Close(void)
+ 578          {
+ 579   1        disp_tel[0] = 0;
+ 580   1        disp_tel[1] = 0;
+ 581   1        disp_tel[2] = 0;
+ 582   1        disp_tel[3] = 0;
+ 583   1        disp_tel[4] = 0;
+ 584   1        disp_tel[5] = 0;  
+ 585   1        disp_tel[6] = 0;
+ 586   1        disp_tel[7] = 0;
+ 587   1        disp_tel[8] = 0;
+ 588   1        disp_tel[9] = 0;
+ 589   1        disp_tel[11] = 0;
+ 590   1        disp_tel[12] = 0;
+ 591   1        disp_tel[13] = 0;
+ 592   1        disp_tel[14] = 0; 
+ 593   1        disp_tel[15] = 0; 
+ 594   1      }
+ 595          
+ 596          void Disp_All_Open(void)
+ 597          {
+ 598   1        disp_tel[0] = 0xff;
+ 599   1        disp_tel[1] = 0xff;
+ 600   1        disp_tel[2] = 0xff;
+ 601   1        disp_tel[3] = 0xff;
+ 602   1        disp_tel[4] = 0xff;
+ 603   1        disp_tel[5] = 0xff; 
+ 604   1        disp_tel[6] = 0xff;
+ 605   1        disp_tel[7] = 0xff;
+ 606   1        disp_tel[8] = 0xff;
+ 607   1        disp_tel[9] = 0xff;
+ 608   1        disp_tel[11] = 0xff;
+ 609   1        disp_tel[12] = 0xff;
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 11  
+
+ 610   1        disp_tel[13] = 0xff;
+ 611   1        disp_tel[14] = 0xff;  
+ 612   1        disp_tel[15] = 0xff;  
+ 613   1      }
+ 614          
+ 615          
+ 616          
+ 617          
+ 618          
+ 619          
+ 620          void SMG_deal(uchar number,uchar weizhi)
+ 621          {
+ 622   1        switch(number)
+ 623   1        {
+ 624   2          case 0:
+ 625   2          switch(weizhi)
+ 626   2          {
+ 627   3            case 1:
+ 628   3            A_SMG1; B_SMG1; C_SMG1; D_SMG1; E_SMG1; F_SMG1;
+ 629   3            break;
+ 630   3            case 2:
+ 631   3            A_SMG2; B_SMG2; C_SMG2; D_SMG2; E_SMG2; F_SMG2;
+ 632   3            break;
+ 633   3            case 3:
+ 634   3            A_SMG3; B_SMG3; C_SMG3; D_SMG3; E_SMG3; F_SMG3;
+ 635   3            break;
+ 636   3            case 4:
+ 637   3            A_SMG4; B_SMG4; C_SMG4; D_SMG4; E_SMG4; F_SMG4;
+ 638   3            break;
+ 639   3            case 5:
+ 640   3            A_SMG5; B_SMG5; C_SMG5; D_SMG5; E_SMG5; F_SMG5;
+ 641   3            break;
+ 642   3            case 6:
+ 643   3            A_SMG6; B_SMG6; C_SMG6; D_SMG6; E_SMG6; F_SMG6;
+ 644   3            break;
+ 645   3          }
+ 646   2          break;
+ 647   2          
+ 648   2          case 1:
+ 649   2          switch(weizhi)
+ 650   2          {
+ 651   3            case 1:
+ 652   3            B_SMG1;C_SMG1;
+ 653   3            break;
+ 654   3            case 2:
+ 655   3            B_SMG2;C_SMG2;
+ 656   3            break;
+ 657   3            case 3:
+ 658   3            B_SMG3;C_SMG3;
+ 659   3            break;
+ 660   3            case 4:
+ 661   3            B_SMG4;C_SMG4;
+ 662   3            break;
+ 663   3            case 5:
+ 664   3            B_SMG5;C_SMG5;
+ 665   3            break;
+ 666   3            case 6:
+ 667   3            B_SMG6;C_SMG6;
+ 668   3            break;
+ 669   3          }
+ 670   2          break;
+ 671   2          
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 12  
+
+ 672   2          case 2:
+ 673   2          switch(weizhi)
+ 674   2          {
+ 675   3            case 1:
+ 676   3            A_SMG1; B_SMG1; G_SMG1; E_SMG1; D_SMG1;
+ 677   3            break;
+ 678   3            case 2:
+ 679   3            A_SMG2; B_SMG2; G_SMG2; E_SMG2; D_SMG2;
+ 680   3            break;
+ 681   3            case 3:
+ 682   3            A_SMG3; B_SMG3; G_SMG3; E_SMG3; D_SMG3;
+ 683   3            break;
+ 684   3            case 4:
+ 685   3            A_SMG4; B_SMG4; G_SMG4; E_SMG4; D_SMG4;
+ 686   3            break;
+ 687   3            case 5:
+ 688   3            A_SMG5; B_SMG5; G_SMG5; E_SMG5; D_SMG5;
+ 689   3            break;
+ 690   3            case 6:
+ 691   3            A_SMG6; B_SMG6; G_SMG6; E_SMG6; D_SMG6;
+ 692   3            break;
+ 693   3          }
+ 694   2          break;
+ 695   2          
+ 696   2          case 3:
+ 697   2            switch(weizhi)
+ 698   2          {
+ 699   3            case 1:
+ 700   3            A_SMG1; B_SMG1; G_SMG1; C_SMG1; D_SMG1;
+ 701   3            break;
+ 702   3            case 2:
+ 703   3            A_SMG2; B_SMG2; G_SMG2; C_SMG2; D_SMG2;
+ 704   3            break;
+ 705   3            case 3:
+ 706   3            A_SMG3; B_SMG3; G_SMG3; C_SMG3; D_SMG3;
+ 707   3            break;
+ 708   3            case 4:
+ 709   3            A_SMG4; B_SMG4; G_SMG4; C_SMG4; D_SMG4;
+ 710   3            break;
+ 711   3            case 5:
+ 712   3            A_SMG5; B_SMG5; G_SMG5; C_SMG5; D_SMG5;
+ 713   3            break;
+ 714   3            case 6:
+ 715   3            A_SMG6; B_SMG6; G_SMG6; C_SMG6; D_SMG6;
+ 716   3            break;
+ 717   3          }   
+ 718   2          break;
+ 719   2            
+ 720   2          case 4:
+ 721   2            switch(weizhi)
+ 722   2          {
+ 723   3            case 1:
+ 724   3            B_SMG1; G_SMG1; F_SMG1; C_SMG1;
+ 725   3            break;
+ 726   3            case 2:
+ 727   3            B_SMG2; G_SMG2; F_SMG2; C_SMG2;
+ 728   3            break;
+ 729   3            case 3:
+ 730   3            B_SMG3; G_SMG3; F_SMG3; C_SMG3;
+ 731   3            break;
+ 732   3            case 4:
+ 733   3            B_SMG4; G_SMG4; F_SMG4; C_SMG4;
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 13  
+
+ 734   3            break;
+ 735   3            case 5:
+ 736   3            B_SMG5; G_SMG5; F_SMG5; C_SMG5;
+ 737   3            break;
+ 738   3            case 6:
+ 739   3            B_SMG6; G_SMG6; F_SMG6; C_SMG6;
+ 740   3            break;
+ 741   3          } 
+ 742   2          break;
+ 743   2          
+ 744   2          case 5:
+ 745   2            switch(weizhi)
+ 746   2          {
+ 747   3            case 1:
+ 748   3            A_SMG1; F_SMG1; G_SMG1; C_SMG1; D_SMG1;
+ 749   3            break;
+ 750   3            case 2:
+ 751   3            A_SMG2; F_SMG2; G_SMG2; C_SMG2; D_SMG2;
+ 752   3            break;
+ 753   3            case 3:
+ 754   3            A_SMG3; F_SMG3; G_SMG3; C_SMG3; D_SMG3;
+ 755   3            break;
+ 756   3            case 4:
+ 757   3            A_SMG4; F_SMG4; G_SMG4; C_SMG4; D_SMG4;
+ 758   3            break;
+ 759   3            case 5:
+ 760   3            A_SMG5; F_SMG5; G_SMG5; C_SMG5; D_SMG5;
+ 761   3            break;
+ 762   3            case 6:
+ 763   3            A_SMG6; F_SMG6; G_SMG6; C_SMG6; D_SMG6;
+ 764   3            break;
+ 765   3          } 
+ 766   2          break;
+ 767   2          
+ 768   2          case 6:
+ 769   2            switch(weizhi)
+ 770   2          {
+ 771   3            case 1:
+ 772   3            A_SMG1; F_SMG1; G_SMG1; C_SMG1; D_SMG1; E_SMG1;
+ 773   3            break;
+ 774   3            case 2:
+ 775   3            A_SMG2; F_SMG2; G_SMG2; C_SMG2; D_SMG2; E_SMG2;
+ 776   3            break;
+ 777   3            case 3:
+ 778   3            A_SMG3; F_SMG3; G_SMG3; C_SMG3; D_SMG3; E_SMG3;
+ 779   3            break;
+ 780   3            case 4:
+ 781   3            A_SMG4; F_SMG4; G_SMG4; C_SMG4; D_SMG4; E_SMG4;
+ 782   3            break;
+ 783   3            case 5:
+ 784   3            A_SMG5; F_SMG5; G_SMG5; C_SMG5; D_SMG5; E_SMG5;
+ 785   3            break;
+ 786   3            case 6:
+ 787   3            A_SMG6; F_SMG6; G_SMG6; C_SMG6; D_SMG6; E_SMG6;
+ 788   3            break;
+ 789   3          } 
+ 790   2          break;
+ 791   2          
+ 792   2          case 7:
+ 793   2            switch(weizhi)
+ 794   2          {
+ 795   3            case 1:
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 14  
+
+ 796   3            A_SMG1; B_SMG1; C_SMG1;
+ 797   3            break;
+ 798   3            case 2:
+ 799   3            A_SMG2; B_SMG2; C_SMG2;
+ 800   3            break;
+ 801   3            case 3:
+ 802   3            A_SMG3; B_SMG3; C_SMG3;
+ 803   3            break;
+ 804   3            case 4:
+ 805   3            A_SMG4; B_SMG4; C_SMG4;
+ 806   3            break;
+ 807   3            case 5:
+ 808   3            A_SMG5; B_SMG5; C_SMG5;
+ 809   3            break;
+ 810   3            case 6:
+ 811   3            A_SMG6; B_SMG6; C_SMG6;
+ 812   3            break;
+ 813   3          }
+ 814   2          break;
+ 815   2          
+ 816   2          case 8:
+ 817   2            switch(weizhi)
+ 818   2          {
+ 819   3            case 1:
+ 820   3            A_SMG1; B_SMG1; C_SMG1; D_SMG1; E_SMG1; F_SMG1; G_SMG1;
+ 821   3            break;
+ 822   3            case 2:
+ 823   3            A_SMG2; B_SMG2; C_SMG2; D_SMG2; E_SMG2; F_SMG2; G_SMG2;
+ 824   3            break;
+ 825   3            case 3:
+ 826   3            A_SMG3; B_SMG3; C_SMG3; D_SMG3; E_SMG3; F_SMG3; G_SMG3;
+ 827   3            break;
+ 828   3            case 4:
+ 829   3            A_SMG4; B_SMG4; C_SMG4; D_SMG4; E_SMG4; F_SMG4; G_SMG4;
+ 830   3            break;
+ 831   3            case 5:
+ 832   3            A_SMG5; B_SMG5; C_SMG5; D_SMG5; E_SMG5; F_SMG5; G_SMG5;
+ 833   3            break;
+ 834   3            case 6:
+ 835   3            A_SMG6; B_SMG6; C_SMG6; D_SMG6; E_SMG6; F_SMG6; G_SMG6;
+ 836   3            break;
+ 837   3          }       
+ 838   2          break;  
+ 839   2          
+ 840   2          case 9:
+ 841   2            switch(weizhi)
+ 842   2          {
+ 843   3            case 1:
+ 844   3            A_SMG1; B_SMG1; C_SMG1; D_SMG1; F_SMG1; G_SMG1;
+ 845   3            break;
+ 846   3            case 2:
+ 847   3            A_SMG2; B_SMG2; C_SMG2; D_SMG2; F_SMG2; G_SMG2;
+ 848   3            break;
+ 849   3            case 3:
+ 850   3            A_SMG3; B_SMG3; C_SMG3; D_SMG3; F_SMG3; G_SMG3;
+ 851   3            break;
+ 852   3            case 4:
+ 853   3            A_SMG4; B_SMG4; C_SMG4; D_SMG4; F_SMG4; G_SMG4;
+ 854   3            break;
+ 855   3            case 5:
+ 856   3            A_SMG5; B_SMG5; C_SMG5; D_SMG5; F_SMG5; G_SMG5;
+ 857   3            break;
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 15  
+
+ 858   3            case 6:
+ 859   3            A_SMG6; B_SMG6; C_SMG6; D_SMG6; F_SMG6; G_SMG6;
+ 860   3            break;
+ 861   3          }   
+ 862   2          break;  
+ 863   2        }
+ 864   1      }
+ 865          
+ 866          
+ 867          void Dsp_left_deal(uint three)
+ 868          {
+ 869   1      //  left_bai=three/100;
+ 870   1      //  left_shi=three%100/10;
+ 871   1      //  left_ge =three%10;
+ 872   1        if(three>=100)
+ 873   1        SMG_deal(three/100,1);
+ 874   1        SMG_deal(three%100/10,2);
+ 875   1        SMG_deal(three%10,3);
+ 876   1      }
+ 877          
+ 878          
+ 879          void Dsp_right_deal(uint three)
+ 880          {
+ 881   1      //  right_bai=three/100;
+ 882   1      //  right_shi=three%100/10;
+ 883   1      //  right_ge =three%10;
+ 884   1        if(three>=100)
+ 885   1        SMG_deal(three/100,4);
+ 886   1        SMG_deal(three%100/10,5);
+ 887   1        SMG_deal(three%10,6);
+ 888   1      }
+ 889          
+ 890          void Dsp_Time(uint three)
+ 891          {
+ 892   1        SMG_deal(three/60/10,2);
+ 893   1        SMG_deal(three/60%10,3);
+ 894   1        SMG_deal(three%60/10,5);
+ 895   1        SMG_deal(three%60%10,6);
+ 896   1      }
+ 897          
+ 898          void dsp_ad(uint four)
+ 899          {
+ 900   1        SMG_deal(four/1000,3);
+ 901   1        SMG_deal(four%1000/100,4);
+ 902   1        SMG_deal(four%100/10,5);
+ 903   1        SMG_deal(four%10,6);
+ 904   1      }
+ 905          
+ 906          //void  Disp(void)
+ 907          //{
+ 908          //  //disp_tel[1] |=0xff;
+ 909          //  Disp_All_Close();
+ 910          ////  disp_tel[1]|=0x18;
+ 911          //  Dsp_left_deal(788);
+ 912          //  Dsp_right_deal(hjdhjd);
+ 913          ////  disp_tel[1]=smg_tt[key_cnt];
+ 914          ////  Disp_All_Open();
+ 915          //  //disp_tel2[2]=DISP_E;
+ 916          //  //disp_tel2[3]=DISP_C;
+ 917          //  //DisFourU16(key_num);
+ 918          //}
+ 919          
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 16  
+
+ 920          void QuFan(void)
+ 921          {
+ 922   1        if(++QuFan_Time>=Time_500mS)
+ 923   1        {
+ 924   2          QuFan_Time=0;
+ 925   2          QuFan_b=~QuFan_b;
+ 926   2        }
+ 927   1      }
+ 928          
+ 929          void Menu_Led_deal()
+ 930          {
+ 931   1        if(Menu==ZhuFei)  LED_ZhuFei;
+ 932   1        
+ 933   1        else if(Menu==ChuLv)  LED_ChuLv;
+ 934   1        
+ 935   1        else if(Menu==DunZhu)  LED_DunZhu;
+ 936   1        
+ 937   1        else if(Menu==YuYue)  LED_YuYue;
+ 938   1        
+ 939   1        else if(Menu==TiaoNai)  LED_TiaoNai;
+ 940   1        
+ 941   1        else if(Menu==ReTiao)  LED_ReTiao;
+ 942   1        
+ 943   1        else if(Menu==HuaCha)  LED_HuaCha;
+ 944   1        
+ 945   1        else if(Menu==WenHuo)  LED_WenHuo;
+ 946   1      //  switch(Menu)
+ 947   1      //    {
+ 948   1      //    case ZhuFei:
+ 949   1      //      LED_ZhuFei;
+ 950   1      //    break;
+ 951   1      //    
+ 952   1      //    case ChuLv:
+ 953   1      //      LED_ChuLv;
+ 954   1      //    break;
+ 955   1      //    
+ 956   1      //    case DunZhu:
+ 957   1      //      LED_DunZhu;
+ 958   1      //    break;
+ 959   1      //    
+ 960   1      //    case YuYue:
+ 961   1      //      LED_YuYue;
+ 962   1      //    break;
+ 963   1      //    
+ 964   1      //    case TiaoNai:
+ 965   1      //      LED_TiaoNai;
+ 966   1      //    break;
+ 967   1      //    
+ 968   1      //    case ReTiao:
+ 969   1      //      LED_ReTiao;
+ 970   1      //    break;
+ 971   1      //    
+ 972   1      //    case HuaCha:
+ 973   1      //      LED_HuaCha;
+ 974   1      //    break;
+ 975   1      //    
+ 976   1      //    case WenHuo:
+ 977   1      //      LED_WenHuo;
+ 978   1      //    break;
+ 979   1      //    }
+ 980   1      } 
+ 981          
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 17  
+
+ 982          void  Disp(void)
+ 983          {
+ 984   1        if(No_operation_Time<250)No_operation_Time++;
+ 985   1        if(No_operation_Time>=199)
+ 986   1        {
+ 987   2          if(Menu==DunZhu||Menu==HuaCha||Menu==WenHuo)
+ 988   2          {
+ 989   3            if(feiteng_b)
+ 990   3              dsp_way=dsp_time;
+ 991   3            else
+ 992   3              dsp_way=dsp_temp;
+ 993   3          }
+ 994   2        }
+ 995   1        if(++BaoWen_Jia_time>=200)BaoWen_Jia_time=220;
+ 996   1        if(++ShangDian_Time>=Time_10S)ShangDian_Time=Time_12S;
+ 997   1        if(Buz_Begin_b)buz_time_delay=0;
+ 998   1        if(buz_time_delay<250)buz_time_delay++;
+ 999   1      if(!Buz_Begin_b&&buz_time_delay>=7&&system_state!=GuanJi_state)
+1000   1      {
+1001   2        if(gaoyuan_b&&dsp_wendu>94)  //高原假显逻辑处理
+1002   2        {
+1003   3          if(++JiaXian_time>=Time_3S)
+1004   3          {
+1005   4            JiaXian_time=0;
+1006   4            if(dsp_wendu<100)
+1007   4              dsp_wendu++;
+1008   4          }
+1009   3        }
+1010   2        else           //正常显示逻辑处理
+1011   2        {
+1012   3          if(dsp_wendu>=97&&adc_NTC_Temp>=95&&system_state==Work_state&&Menu!=TiaoNai&&Menu!=ReTiao)
+1013   3          {
+1014   4            du_97=1;
+1015   4          }
+1016   3          else if(adc_NTC_Temp<95&&du_97)
+1017   3          {
+1018   4            du_97=0;
+1019   4            //dsp_wendu=adc_NTC_Temp;
+1020   4            gaoyuan_time=0;
+1021   4          }
+1022   3          if(system_state!=Work_state)du_97=0;
+1023   3          if(du_97)  //97度后开始假显
+1024   3          {
+1025   4            if(adc_NTC_Temp>dsp_wendu&&adc_NTC_Temp<=100)
+1026   4            {
+1027   5              dsp_wendu=adc_NTC_Temp;
+1028   5              JiaXian_time=0;
+1029   5            }
+1030   4              if(++JiaXian_time>Time_11S)
+1031   4            {
+1032   5              JiaXian_time=0;
+1033   5              if(dsp_wendu<100)
+1034   5                dsp_wendu++;
+1035   5            }
+1036   4          }
+1037   3          else
+1038   3          {
+1039   4            if(BaoWen_JiaXian_100)
+1040   4            {
+1041   5                if(dsp_wendu>adc_NTC_Temp+3)
+1042   5              {
+1043   6                if(++duibi_time>=Time_3S)
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 18  
+
+1044   6                {
+1045   7                  duibi_time=0;
+1046   7                  BaoWen_JiaXian_100=0;
+1047   7                }
+1048   6              }
+1049   5              else if(dsp_wendu<=adc_NTC_Temp)
+1050   5              {
+1051   6                if(++duibi_time>=Time_3S)
+1052   6                {
+1053   7                  duibi_time=0;
+1054   7                  BaoWen_JiaXian_100=0;
+1055   7                }
+1056   6              }
+1057   5              else
+1058   5              {
+1059   6                duibi_time=0;
+1060   6              }
+1061   5              if(dsp_wendu!=adc_NTC_Temp)
+1062   5              {
+1063   6                   if(dsp_wendu>adc_NTC_Temp)
+1064   6                  {
+1065   7                    if(++duibi_time2>=Time_15S)
+1066   7                      {
+1067   8                        duibi_time2=0;
+1068   8                        dsp_wendu--;
+1069   8                      }
+1070   7                  }
+1071   6              }
+1072   5            }
+1073   4            else
+1074   4            {
+1075   5              if(dsp_wendu!=adc_NTC_Temp&&JiaXian_b==0)
+1076   5              {
+1077   6                if((dsp_wendu>adc_NTC_Temp+3||dsp_wendu<adc_NTC_Temp-3)&&adc_NTC_Temp<98)
+1078   6                {
+1079   7                  Jian_baowen_xianzhi=0;
+1080   7                }
+1081   6                if((dsp_wendu>adc_NTC_Temp+7||dsp_wendu<adc_NTC_Temp-7))
+1082   6                {
+1083   7                  if(++duibi_time>=10)
+1084   7                  {
+1085   8                      duibi_time=0;
+1086   8                      Jian_baowen_xianzhi=0;
+1087   8                      if(adc_NTC_Temp>=100)
+1088   8                      dsp_wendu=100;
+1089   8                      else
+1090   8                      dsp_wendu=adc_NTC_Temp;
+1091   8                      return;
+1092   8                  }
+1093   7                }
+1094   6                 if(dsp_wendu>adc_NTC_Temp&&BaoWen_Jia_time>=210)
+1095   6                {
+1096   7                  if(++duibi_time>=Time_3S)
+1097   7                    {
+1098   8                      duibi_time=0;
+1099   8                      dsp_wendu--;
+1100   8                      Jian_baowen_xianzhi=0;
+1101   8                    }
+1102   7                }
+1103   6                else if(dsp_wendu<adc_NTC_Temp&&BaoWen_Jia_time>=210&&Jian_baowen_xianzhi==0)
+1104   6                {
+1105   7                  if(++duibi_time>=Time_3S)
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 19  
+
+1106   7                  {
+1107   8                    duibi_time=0;
+1108   8                    if(dsp_wendu<100)
+1109   8                    dsp_wendu++;
+1110   8                    max_wendu=dsp_wendu;
+1111   8                  }
+1112   7                }
+1113   6              }
+1114   5              else
+1115   5              {
+1116   6                duibi_time=0;
+1117   6              }
+1118   5            }
+1119   4          }
+1120   3        }
+1121   2      }
+1122   1          
+1123   1      
+1124   1        Disp_All_Close();
+1125   1      if(system_state!=Warm_state&&Menu!=TiaoNai&&Menu!=ReTiao)
+1126   1      {
+1127   2        baowen_buz=0;
+1128   2      }
+1129   1         switch(system_state)
+1130   1         {
+1131   2           case ShangDian_state:      //上电显示
+1132   2           dsp_ShangDian_deal();
+1133   2           break;
+1134   2           
+1135   2           case GuanJi_state:         //关机显示
+1136   2           dsp_GuanJi_deal();
+1137   2           break;
+1138   2           
+1139   2           case DaiJi_state:          //待机显示
+1140   2           dsp_DaiJi_deal();
+1141   2           break;
+1142   2           
+1143   2           case Menu_state:           //菜单状态显示
+1144   2           dsp_Menu_deal();
+1145   2           break;
+1146   2           
+1147   2           case Work_state:           //工作状态显示
+1148   2           dsp_Work_deal();
+1149   2           break;
+1150   2           
+1151   2           case Warm_state:           //保温状态显示
+1152   2           dsp_Warm_deal();
+1153   2           break;
+1154   2           
+1155   2           case ZiJian_state:          //自检状态显示
+1156   2           dsp_ZiJian_deal();
+1157   2           break;
+1158   2           
+1159   2           case BaoJing_state:         //报警状态显示
+1160   2           dsp_error_deal();
+1161   2           break;
+1162   2           
+1163   2           case YuYue_state:           //预约状态显示
+1164   2           dsp_YuYue_deal();
+1165   2           break;
+1166   2         }
+1167   1      }
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 20  
+
+1168          
+1169          uchar shangdian_buz;
+1170          void  dsp_ShangDian_deal()
+1171          {
+1172   1        if(shangdian_buz==0)
+1173   1        {
+1174   2          shangdian_buz=1;
+1175   2          Buz_Start(70,10,1);
+1176   2        }
+1177   1        if(++All_dspTime>=70)
+1178   1        {
+1179   2          system_state=GuanJi_state;  
+1180   2        }
+1181   1        Disp_All_Open();
+1182   1      } 
+1183          
+1184          
+1185          void dsp_GuanJi_deal()
+1186          {
+1187   1      //  Dsp_left_deal(Fan_state);
+1188   1      //  if(zero_pro_b==0)
+1189   1      //    LED1;
+1190   1      //  CLR_Heat;
+1191   1      //  LED_WenHuo;
+1192   1          if(QuFan_b==0)LED_Power;
+1193   1      //  dsp_ad(ad_NTC_value);
+1194   1      } 
+1195          
+1196          
+1197          
+1198          void  dsp_DaiJi_deal()
+1199          {
+1200   1        
+1201   1        G_SMG5;G_SMG6;
+1202   1        if(Fan_b)
+1203   1        {
+1204   2          if(QuFan_b==0)
+1205   2            LED_Power;
+1206   2        }
+1207   1        else
+1208   1          LED_Power;
+1209   1        
+1210   1        if(Fan_b==0)
+1211   1        {
+1212   2          if(++GuanJi_time>=Time_30S)
+1213   2          {
+1214   3            GuanJi_time=0;
+1215   3            error_b2=0;
+1216   3            system_state=GuanJi_state;
+1217   3            Buz_Start(20,0,1);
+1218   3          }
+1219   2        }
+1220   1        if(error_b2)
+1221   1        {
+1222   2            switch(error_b2)
+1223   2          {
+1224   3            case 1:
+1225   3              error_E;
+1226   3              error_1;
+1227   3            break;
+1228   3            
+1229   3            case 2:
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 21  
+
+1230   3              error_E;
+1231   3              error_2;
+1232   3            break;
+1233   3            
+1234   3            case 3:
+1235   3              error_E;
+1236   3              error_3;
+1237   3            break;
+1238   3            
+1239   3            case 4:
+1240   3              error_E;
+1241   3              error_4;
+1242   3            break;
+1243   3          }
+1244   2          return;
+1245   2        }
+1246   1        if(TiHu_b&&error_b2==0)
+1247   1        {
+1248   2          error_E;
+1249   2          error_1;
+1250   2          return;
+1251   2        }
+1252   1        Dsp_left_deal(dsp_wendu);
+1253   1      }
+1254          
+1255          void  dsp_Menu_deal()
+1256          {
+1257   1        LED_Power;
+1258   1        if(TiHu_b)
+1259   1        {
+1260   2          error_E;
+1261   2          error_1;
+1262   2          G_SMG5;G_SMG6;
+1263   2          return;
+1264   2        }
+1265   1        if(Menu==YuYue)
+1266   1        {
+1267   2          if(++GuanJi_time>=Time_1Min)
+1268   2          {
+1269   3            GuanJi_time=0;
+1270   3            system_state=DaiJi_state;
+1271   3            Menu=0;
+1272   3            dsp_way=0;
+1273   3            No_operation_Time=0;
+1274   3            YuYue_b=0;
+1275   3            YuYue_Time=0;
+1276   3            //Buz_Start(20,0,1);
+1277   3          }
+1278   2        }
+1279   1        
+1280   1        if(Menu!=YuYue)
+1281   1        {
+1282   2          if(No_operation_Time>Time_4S)
+1283   2          {
+1284   3            //No_operation_Time=0;
+1285   3            if(YuYue_b) 
+1286   3              system_state=YuYue_state;
+1287   3            else
+1288   3              system_state=Work_state;
+1289   3            Buz_Start(16,20,2);
+1290   3      //      if(adc_NTC_Temp>=100)
+1291   3      //        dsp_wendu=100;
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 22  
+
+1292   3      //      else
+1293   3      //      dsp_wendu=adc_NTC_Temp;
+1294   3      //      Work_Time=set_time;
+1295   3            dsp_way=dsp_temp;
+1296   3            Fan_b=0;
+1297   3            CLR_Fan;
+1298   3            r_cook_step=0;
+1299   3            BaoWen_JiaXian_100=0;
+1300   3            gaoyuan_time=0;
+1301   3            change_time=0;
+1302   3            JiaXian_time=0;
+1303   3            start_time_b=0;
+1304   3            feiteng_b=0;
+1305   3            frist_baowen_temp=0;
+1306   3            warm_jiaxian_time=0;
+1307   3            gaoyuan_No=0;
+1308   3            Fun_Time=0;
+1309   3            if(Menu==DunZhu)
+1310   3              dunzhu_time=Work_Time;
+1311   3            else if(Menu==HuaCha)
+1312   3              huacha_time=Work_Time;
+1313   3            else if(Menu==WenHuo)
+1314   3              wenhuo_time=Work_Time;
+1315   3          }
+1316   2        }
+1317   1        if(dsp_way==dsp_temp)
+1318   1        {
+1319   2          Dsp_left_deal(dsp_wendu);
+1320   2          if(Menu==TiaoNai||Menu==ReTiao)
+1321   2          {
+1322   3            if(QuFan_b==0)
+1323   3            Dsp_right_deal(set_temp);
+1324   3          }
+1325   2          else
+1326   2          Dsp_right_deal(set_temp); 
+1327   2        }
+1328   1        else if(dsp_way==dsp_time&&QuFan_b==0)
+1329   1        {
+1330   2          if(Menu==YuYue)
+1331   2          Dsp_Time(YuYue_Time);
+1332   2          else
+1333   2          Dsp_Time(Work_Time);
+1334   2        }
+1335   1        if(QuFan_b==0)
+1336   1        Menu_Led_deal();
+1337   1        if(YuYue_b&&Menu!=YuYue)LED_YuYue;
+1338   1      }
+1339          
+1340          void  dsp_Work_deal()
+1341          {
+1342   1      //  if(No_operation_Time<250)No_operation_Time++;
+1343   1        
+1344   1        if(TiHu_b)//工作中的提壶显示
+1345   1        {
+1346   2          error_E;
+1347   2          error_1;
+1348   2          G_SMG5;G_SMG6;
+1349   2        }
+1350   1        else //没提壶的正常显示
+1351   1        {
+1352   2          if(dsp_way==dsp_temp)
+1353   2          {
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 23  
+
+1354   3              if(JiaXian_b)
+1355   3            {
+1356   4            Dsp_left_deal(set_temp);
+1357   4            Dsp_right_deal(set_temp);
+1358   4              dsp_wendu=set_temp;
+1359   4              duibi_time=0;
+1360   4            }
+1361   3            else
+1362   3            {
+1363   4              if(ChuLv_daojishi)
+1364   4              {
+1365   5                Dsp_left_deal(CL_Min);
+1366   5                Dsp_right_deal(CL_Sec);
+1367   5              }
+1368   4              else
+1369   4              {
+1370   5                if(No_operation_Time<200)
+1371   5                {
+1372   6                  Dsp_left_deal(dsp_wendu);
+1373   6                  if(QuFan_b==0)
+1374   6                  Dsp_right_deal(set_temp); 
+1375   6                }
+1376   5                else
+1377   5                {
+1378   6                  if(Menu==TiaoNai)
+1379   6                  baowen_5=set_temp;
+1380   6                  else if(Menu==ReTiao)
+1381   6                  baowen_6=set_temp;
+1382   6                  Dsp_left_deal(dsp_wendu);
+1383   6                  Dsp_right_deal(set_temp);
+1384   6                    if(baowen_buz)
+1385   6                  {
+1386   7                    baowen_buz=0;
+1387   7                    Buz_Start(16,20,2);
+1388   7                  }
+1389   6                }
+1390   5              }
+1391   4            }
+1392   3          }
+1393   2          else if(dsp_way==dsp_time)
+1394   2          {
+1395   3            if(No_operation_Time<200)
+1396   3            {
+1397   4              if(QuFan_b==0)
+1398   4              Dsp_Time(Work_Time);
+1399   4              if(Menu==DunZhu)
+1400   4              dunzhu_time=Work_Time;
+1401   4            else if(Menu==HuaCha)
+1402   4              huacha_time=Work_Time;
+1403   4            else if(Menu==WenHuo)
+1404   4              wenhuo_time=Work_Time;
+1405   4            }
+1406   3            else
+1407   3            {
+1408   4              Dsp_Time(Work_Time);  
+1409   4            }
+1410   3          }
+1411   2        }
+1412   1        Menu_Led_deal();
+1413   1        LED_Power;
+1414   1      }
+1415          
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 24  
+
+1416          void dsp_YuYue_deal()
+1417          {
+1418   1        LED_Power;
+1419   1        Dsp_Time(YuYue_Time);
+1420   1        Menu_Led_deal();
+1421   1        LED_YuYue;
+1422   1      }
+1423          
+1424          uchar xdata baowen_buz;
+1425          void dsp_Warm_deal()
+1426          {
+1427   1        //Menu=0;
+1428   1        if(TiHu_b)//工作中的提壶显示
+1429   1        {
+1430   2          error_E;
+1431   2          error_1;
+1432   2          G_SMG5;G_SMG6;
+1433   2          return;
+1434   2        }
+1435   1        if(Fan_b)
+1436   1        {
+1437   2          if(QuFan_b==0)
+1438   2            LED_Power;
+1439   2        }
+1440   1        else
+1441   1          LED_Power;
+1442   1      //  if(No_operation_Time<250)No_operation_Time++;
+1443   1        if(No_operation_Time<200)
+1444   1        {
+1445   2          Dsp_left_deal(dsp_wendu);
+1446   2          if(QuFan_b==0)
+1447   2          {
+1448   3            Dsp_right_deal(baowen_temp);
+1449   3          }
+1450   2        }
+1451   1        else
+1452   1        {
+1453   2          if(Menu==ZhuFei)
+1454   2            baowen_1=baowen_temp;
+1455   2          else if(Menu==ChuLv)
+1456   2            baowen_2=baowen_temp;
+1457   2          else if(Menu==DunZhu)
+1458   2            baowen_3=baowen_temp;
+1459   2          else if(Menu==HuaCha)
+1460   2            baowen_7=baowen_temp;
+1461   2          else if(Menu==WenHuo)
+1462   2            baowen_8=baowen_temp;
+1463   2          else 
+1464   2            baowen_9=baowen_temp;
+1465   2          if(baowen_buz)
+1466   2          {
+1467   3            baowen_buz=0;
+1468   3            Buz_Start(16,20,2);
+1469   3          }
+1470   2          if(JiaXian_b)
+1471   2          {
+1472   3          Dsp_left_deal(baowen_temp);
+1473   3          Dsp_right_deal(baowen_temp);
+1474   3            dsp_wendu=baowen_temp;
+1475   3              duibi_time=0;
+1476   3          }
+1477   2          else 
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 25  
+
+1478   2          {
+1479   3          Dsp_left_deal(dsp_wendu);
+1480   3          Dsp_right_deal(baowen_temp);
+1481   3          }
+1482   2        }
+1483   1        
+1484   1      }
+1485          
+1486          void dsp_error_deal()
+1487          {
+1488   1        LED_Power;
+1489   1        switch(error_b)
+1490   1        {
+1491   2          case 1:
+1492   2            error_E;
+1493   2            error_1;
+1494   2          break;
+1495   2          
+1496   2          case 2:
+1497   2            error_E;
+1498   2            error_2;
+1499   2          break;
+1500   2          
+1501   2          case 3:
+1502   2            error_E;
+1503   2            error_3;
+1504   2          break;
+1505   2          
+1506   2          case 4:
+1507   2            error_E;
+1508   2            error_4;
+1509   2          break;
+1510   2        }
+1511   1        Menu_Led_deal();
+1512   1        G_SMG5;G_SMG6;
+1513   1      }
+1514          uchar xdata ZiJian_menu;
+1515          uchar xdata ZiJian_menu2;
+1516          void dsp_ZiJian_deal()
+1517          {
+1518   1        if(TiHu_b)//工作中的提壶显示
+1519   1        {
+1520   2          error_E;
+1521   2          error_1;
+1522   2          G_SMG5;G_SMG6;
+1523   2          return;
+1524   2        }
+1525   1        if(ZiJian_menu2!=2)
+1526   1        {
+1527   2          CLR_Fan;
+1528   2          Fan_b=0;
+1529   2        }
+1530   1        if(ZiJian_menu2!=0&&ZiJian_menu2!=1)
+1531   1        {
+1532   2          Temp_gear=0;
+1533   2        }
+1534   1        LED_Power;
+1535   1        switch(ZiJian_menu)
+1536   1        {
+1537   2          case 0:
+1538   2          ZiJian_1; 
+1539   2          ZiJian_U;
+C51 COMPILER V9.60.0.0   DSP                                                               09/19/2026 18:56:54 PAGE 26  
+
+1540   2          ZiJian_0;
+1541   2          ZiJian_5;
+1542   2          break;
+1543   2          
+1544   2          case 1:
+1545   2          Dsp_right_deal(dsp_wendu);
+1546   2          break;
+1547   2          
+1548   2          case 2:
+1549   2          Disp_All_Open();
+1550   2          break;
+1551   2          
+1552   2          case 3:
+1553   2            switch(ZiJian_menu2)
+1554   2            {
+1555   3              case 0:
+1556   3              Dsp_left_deal(111); 
+1557   3              Dsp_right_deal(111);  
+1558   3              break;
+1559   3              
+1560   3              case 1:
+1561   3              Dsp_left_deal(222); 
+1562   3              Dsp_right_deal(222);  
+1563   3              break;
+1564   3              
+1565   3              case 2:
+1566   3              Dsp_left_deal(333); 
+1567   3              Dsp_right_deal(333);  
+1568   3              break;
+1569   3              
+1570   3              case 3:
+1571   3              Dsp_left_deal(444); 
+1572   3              Dsp_right_deal(444);  
+1573   3              break;
+1574   3            }
+1575   2          break;
+1576   2        }
+1577   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   7040    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     66    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      1    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

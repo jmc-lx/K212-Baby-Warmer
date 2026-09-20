@@ -1,0 +1,485 @@
+C51 COMPILER V9.60.0.0   TOUCH_MCU_INIT                                                    09/19/2026 18:56:54 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE TOUCH_MCU_INIT
+OBJECT MODULE PLACED IN .\Output\Touch_MCU_Init.obj
+COMPILER INVOKED BY: D:\Keil_51\C51\BIN\C51.EXE User\Touch_MCU_Init.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Inc;.\User)
+                    - DEBUG PRINT(.\List\Touch_MCU_Init.lst) TABS(2) OBJECT(.\Output\Touch_MCU_Init.obj)
+
+line level    source
+
+   1          #include "Config.h"
+   2          
+   3          //-----------------------------------------------------------------//
+   4          //函数名称： void CFG_Check(void)
+   5          //函数功能： 配置字对比判断(对应MCU04芯片)
+   6          //输入参数： 无
+   7          //输出参数： 无
+   8          //返 回 值： 无
+   9          //-----------------------------------------------------------------//
+  10          uchar CFG_Rb_Rate = 100;     
+  11          void CFG_Check(void)
+  12          {   
+  13   1        unsigned char i = 0;
+  14   1        unsigned int  code add_cfg[20] =    
+  15   1          {0x81FF,0x83FF,0x83FD,0x83FB,0x83F9,0x83F7,0x83F5,0x83F3,0x83F1,0x83EF,0x83ED,0x83EB,0x83E9,0x83E7,0x83E
+             -5,0x83E3,0x83E1,0x83DF,0x83DD,0x83DB};
+  16   1        unsigned char code add_cfg_Bit[20] = 
+  17   1          {0x3E,   0xFF,  0x1F,  0x3F,  0x3F,  0xFF,  0x3F,  0x1F,  0xEF,  0x07,  0x3F,  0xFF,  0x37,  0xFF,  0xFF,  0
+             -xFF,  0x3F,  0xFF,  0xFF,  0xFF,};
+  18   1        uint rom_offset = 0;
+  19   1        
+  20   1        EA = 0;//关总中断
+  21   1        REG_ADDR = 0x24;
+  22   1        rom_offset = ((uint)REG_DATA)<<8;
+  23   1        REG_ADDR = 0x23;
+  24   1        rom_offset |= REG_DATA;
+  25   1        for(i = 0; i < 20;i++)
+  26   1        {
+  27   2          REG_ADDR = i;
+  28   2      
+  29   2          if((CBYTE[add_cfg[i]-rom_offset]&add_cfg_Bit[i]) != (REG_DATA&add_cfg_Bit[i]))
+  30   2          {
+  31   3            SOFT_RST = 0x55;
+  32   3          } 
+  33   2        }
+  34   1        if((CBYTE[0x83CD-rom_offset] >= 64)&&(CBYTE[0x83CD-rom_offset] <= 96))
+  35   1        {
+  36   2          CFG_Rb_Rate = ((ulong)(CBYTE[0x83CD-rom_offset]*100)/80);
+  37   2        }
+  38   1        P2_XH = 0;//使用MOVX 操作PDATA区时，P2_XH清0
+  39   1        EA = 1;//开总中断 
+  40   1        
+  41   1      }
+  42          //-----------------------------------------------------------------//
+  43          //函数名称： void Delay_Us(uint us)
+  44          //函数功能： 延时为几us
+  45          //输入参数： us
+  46          //输出参数： 无
+  47          //返 回 值： 无
+  48          //-----------------------------------------------------------------//
+  49          
+  50          
+  51          //void Delay_Us(uint us)//1--2.38us@12MHz;10-11.8us@12MHz;100-106us@12MHz;1000-1.045ms
+  52          //{
+C51 COMPILER V9.60.0.0   TOUCH_MCU_INIT                                                    09/19/2026 18:56:54 PAGE 2   
+
+  53          //  for (; us > 0; us--)
+  54          //  { 
+  55          //    WDT_CTRL = 0x07;
+  56          //  }   
+  57          //}
+  58           
+  59          
+  60          //-----------------------------------------------------------------//
+  61          //函数名称： void Bor_Init(void)
+  62          //函数功能： 掉电复位初始化
+  63          //输入参数： 无 
+  64          //输出参数： 无
+  65          //返 回 值： 无
+  66          //-----------------------------------------------------------------//
+  67          void Bor_Init(void) 
+  68          {
+  69   1        EA = 0;
+  70   1        BOR_DELAY(1);//0:延时1，1：延时2,延时时间见规格书表格
+  71   1        V_BOR_SET(1);//BOR掉电复位:(0-保留)-(1-2.8V)-(2-3.3V)-(3-3.7V)-(4/others-4.2V)
+  72   1        BOR_ON;//开启掉电复位
+  73   1        EA = 1;
+  74   1      }
+  75          
+  76          //-----------------------------------------------------------------//
+  77          //函数名称： void Set_Sys_Clk(void)
+  78          //函数功能： 系统时钟设置
+  79          //输入参数： 无 
+  80          //输出参数： 无
+  81          //返 回 值： 无
+  82          //-----------------------------------------------------------------//
+  83          void Set_Sys_Clk(void) 
+  84          {
+  85   1        SYS_CLK_SET(SYSCLK_SEL);//系统时钟选择0-12MHz,1-6MHZ,2-4MHz,3-1MHz
+  86   1      }
+  87           
+  88          
+  89          //-----------------------------------------------------------------//
+  90          //函数名称： void Pow_Delay(uint t)
+  91          //函数功能： 上电延时函数，根据实际应用情况选择调用。
+  92          //输入参数： t
+  93          //输出参数： 无
+  94          //返 回 值： 无
+  95          //-----------------------------------------------------------------//
+  96          
+  97          
+  98          
+  99          //void Pow_Up_Delay(uint ms)//参考1--1ms@12MHz;10-10.05ms@12MHz;100-100ms@12MHz;1000-1000ms
+ 100          //{  
+ 101          //  uint a = 954,b = ms;
+ 102          
+ 103          //  for (b = ms; b > 0; b--)
+ 104          //  {
+ 105          //    for (a = 954; a > 0; a--)
+ 106          //    {
+ 107          //      WDT_CTRL = 0x07;
+ 108          //    } 
+ 109          //  } 
+ 110          
+ 111          //}
+ 112          
+ 113          
+ 114          //-----------------------------------------------------------------//
+C51 COMPILER V9.60.0.0   TOUCH_MCU_INIT                                                    09/19/2026 18:56:54 PAGE 3   
+
+ 115          //函数名称： void Delay_Ms(uint t)
+ 116          //函数功能： ms延时函数
+ 117          //输入参数： t
+ 118          //输出参数： 无
+ 119          //返 回 值： 无
+ 120          //-----------------------------------------------------------------//
+ 121          
+ 122          
+ 123          //  void Delay_Ms(uint ms)//1--1ms@12MHz;10-10.05ms@12MHz;100-100ms@12MHz;1000-1000ms
+ 124          //  {  
+ 125          //    uint a = 954,b = ms;
+ 126          //    for (b = ms; b > 0; b--)
+ 127          //    {
+ 128          //      for (a = 954; a > 0; a--)
+ 129          //      {
+ 130          //        WDT_CTRL = 0x07;
+ 131          //      } 
+ 132          //    } 
+ 133          //  }
+ 134            
+ 135          
+ 136            
+ 137          
+ 138          
+ 139          //-----------------------------------------------------------------//
+ 140          //函数名称： void WDT_Init(void)
+ 141          //函数功能： 看门狗初始化
+ 142          //输入参数： 无
+ 143          //返 回 值： 无
+ 144          //-----------------------------------------------------------------//
+ 145          void WDT_Init(void)
+ 146          {
+ 147   1      
+ 148   1          EA = 0;//关总中断；
+ 149   1          WDT_IP_CLR;//设置WDT中断优级为低，根据实际应运设置优先级
+ 150   1          WDT_INT_FLAG_CLR;//清除看门狗中断标志
+ 151   1          WDT_ON_OFF(0);//仅等于0x55时关闭看门狗
+ 152   1          WDT_CTRL = 7;//设置WDT溢出时间(0~7--18ms~2.304S)7--2.304S
+ 153   1          WDT_IE_SET; //开WDT中断使能
+ 154   1          EA = 1;//开总中断 
+ 155   1      }
+ 156          
+ 157          
+ 158          //-----------------------------------------------------------------//
+ 159          //函数名称： void Init_IO(void)
+ 160          //函数功能： IO口初始化,将没有用到的或悬空的IO口，设置为IO输出为低
+ 161          //输入参数： 无
+ 162          //返 回 值： 无
+ 163          //-----------------------------------------------------------------//
+ 164          void Init_IO(void)
+ 165          {
+ 166   1        #if (TRACEMODE == FALSE) 
+ 167   1          //IO口初化
+ 168   1          //例:SET_PB0_IO_OUT;
+ 169   1          //例:SET_PB0_H;
+ 170   1        Disp_gpio_out_init();
+ 171   1          SET_PA1_IO_OUT;
+ 172   1          SET_PA1_L;
+ 173   1          SET_PC1_IO_IN;
+ 174   1          SET_PD3_IO_IN;
+ 175   1      
+ 176   1        #endif
+C51 COMPILER V9.60.0.0   TOUCH_MCU_INIT                                                    09/19/2026 18:56:54 PAGE 4   
+
+ 177   1      
+ 178   1        #if (TRACEMODE == TRUE) 
+              //    SET_PB3_IO_OUT;
+              //    SET_PB3_H;
+                #endif
+ 182   1      }
+ 183          
+ 184          //-----------------------------------------------------------------//
+ 185          //函数名称： void Default_Set_IO(void)
+ 186          //函数功能： 默认IO口设置
+ 187          //输入参数： 无
+ 188          //返 回 值： 无
+ 189          //-----------------------------------------------------------------//
+ 190          void Default_Set_IO(void)
+ 191          {   
+ 192   1      
+ 193   1          SNS_IO_SEL1 = 0x00;//bit0~bit7-0：设置为IO口；1：设置为SNS；
+ 194   1          SNS_IO_SEL2 = 0x00;//bit0~bit7-0：设置为IO口；1：设置为SNS；
+ 195   1          SNS_IO_SEL3 = 0x00;//bit0~bit7-0：设置为IO口；1：设置为SNS；
+ 196   1          SNS_IO_SEL4 = 0x00;//bit0~bit1-0：设置为IO口；1：设置为SNS；
+ 197   1        
+ 198   1        
+ 199   1          PU_PA = 0x00;   //0：设置为上拉不使能；1：设置为上拉使能；
+ 200   1          PU_PB = 0x00;   //0：设置为上拉不使能；1：设置为上拉使能；
+ 201   1          PU_PC = 0x00;   //0：设置为上拉不使能；1：设置为上拉使能；
+ 202   1          PU_PD = 0x00;   //0：设置为上拉不使能；1：设置为上拉使能；
+ 203   1        
+ 204   1          PD_PB = 0x00;   //0：设置为下拉不使能；1：设置为下拉使能；
+ 205   1        
+ 206   1          DATAA = 0x00;
+ 207   1          DATAB = 0x00;
+ 208   1          DATAC = 0x00;
+ 209   1          DATAD = 0x00;   //0：设置为输出低；1：设置为输出高；
+ 210   1        
+ 211   1          TRISA = 0x00;
+ 212   1          TRISB = 0x00;
+ 213   1          TRISC = 0x00;
+ 214   1          TRISD = 0x00;    //0：设置为输出；1：设置为输入；
+ 215   1      
+ 216   1      }
+ 217          
+ 218          
+ 219          //-----------------------------------------------------------------//
+ 220          //函数名称： void Function_Init(void)
+ 221          //函数功能： 片上外设功能模块初始化
+ 222          //输入参数： 无
+ 223          //返 回 值： 无
+ 224          //调用位置：MCU_Init()，IO初始化完成之后执行
+ 225          //注意事项：全局总中断EA不在此函数打开，main初始化完成后再开EA
+ 226          //-----------------------------------------------------------------//
+ 227          void Function_Init(void)
+ 228          {
+ 229   1        //==========【调试模式初始化】==========
+ 230   1        //如果开启调试宏，初始化调试追踪功能
+ 231   1        #if (TRACEMODE == TRUE)
+                    BF7613BMXX_XXXX_Trace_Mode_Init(0);//调试模式初始化
+                #endif
+ 234   1        
+ 235   1        //==========【定时器0初始化】==========
+ 236   1        #ifdef Timer0_EN
+ 237   1          #if Timer0_EN
+ 238   1            Timer0_Init(1000);//定时器0初始化，传入定时参数1000
+C51 COMPILER V9.60.0.0   TOUCH_MCU_INIT                                                    09/19/2026 18:56:54 PAGE 5   
+
+ 239   1          #endif
+ 240   1        #endif
+ 241   1        
+ 242   1        //==========【定时器1初始化】==========
+ 243   1        #ifdef Timer1_EN
+ 244   1          #if Timer1_EN
+ 245   1            Timer1_Init(124);//定时器1初始化，传入定时参数124
+ 246   1          #endif
+ 247   1        #endif
+ 248   1        
+ 249   1        //==========【定时器2初始化】==========
+ 250   1        #ifdef Timer2_EN
+ 251   1          #if Timer2_EN
+                    Timer2_Init(1);//定时器2初始化，传入定时参数1
+                  #endif
+ 254   1        #endif
+ 255   1        
+ 256   1        //==========【空闲休眠唤醒初始化】==========
+ 257   1        #ifdef IDLE_MODE
+                  #if IDLE_MODE
+                    Idle_Wake_Up_Init(5000,3);//空闲模式初始化，唤醒参数5000、3
+                  #endif 
+                #endif
+ 262   1        
+ 263   1        //==========【串口UART0初始化】==========
+ 264   1        #ifdef UART0_EN
+                  #if(UART0_EN == 1)
+                    UART0_Init();//UART0_初始化
+                  #endif
+                #endif
+ 269   1        
+ 270   1        //==========【串口UART1初始化】==========
+ 271   1        #ifdef UART1_EN
+                  #if(UART1_EN == 1)
+                    UART1_Init();//UART1_初始化
+                  #endif
+                #endif
+ 276   1        
+ 277   1        //==========【PWM0模块初始化】==========
+ 278   1        #ifdef PWM0_EN
+                  #if (PWM0_EN == 1)
+                    PWM0_Init();  //PWM0模块基础初始化
+                    
+                    //开启PWM0A通道，设置周期、占空比参数
+                    #if (PWM0_CH_EN & 0x01)
+                      PWM0A_Set(4000,3000);
+                    #endif
+                    //开启PWM0B通道
+                    #if (PWM0_CH_EN & 0x02)
+                      PWM0B_Set(4000,3000);
+                    #endif
+                    //开启PWM0C通道
+                    #if (PWM0_CH_EN & 0x04)
+                      PWM0C_Set(4000,3000);
+                    #endif
+                    //开启PWM0D通道
+                    #if (PWM0_CH_EN & 0x08)
+                      PWM0D_Set(4000,3000);
+                    #endif
+                  #endif
+                #endif
+ 300   1        
+C51 COMPILER V9.60.0.0   TOUCH_MCU_INIT                                                    09/19/2026 18:56:54 PAGE 6   
+
+ 301   1        //==========【PWM1模块初始化】==========
+ 302   1        #ifdef PWM1_EN
+                  #if (PWM1_EN == 1)
+                    PWM1_Init();//PWM1模块基础初始化
+                    //PWM1A通道
+                    #if (PWM1_CH_EN & 0x01)
+                      PWM1A_Set(4000,3000);
+                    #endif
+                    //PWM1B通道
+                    #if (PWM1_CH_EN & 0x02)
+                      PWM1B_Set(4000,3000);
+                    #endif
+                  #endif
+                #endif
+ 315   1        
+ 316   1        //==========【PWM2模块初始化】==========
+ 317   1        #ifdef PWM2_EN
+                  #if (PWM2_EN == 1)
+                    PWM2_Init();//PWM2模块基础初始化
+                    //PWM2A通道
+                    #if (PWM2_CH_EN & 0x01)
+                      PWM2A_Set(4000,3000);
+                    #endif
+                    //PWM2B通道
+                    #if (PWM2_CH_EN & 0x02)
+                      PWM2B_Set(4000,3000);
+                    #endif
+                  #endif
+                #endif
+ 330   1        
+ 331   1        //==========【LED数码管/LED驱动初始化】==========
+ 332   1        #ifdef LED_EN
+                  #if (LED_EN == 1)
+                    LED_SER_Init();//串行LED驱动初始化
+                  #endif
+                #endif
+ 337   1        
+ 338   1        //==========【外部中断0初始化】==========
+ 339   1        #ifdef ExtInt0_EN
+                  #if ExtInt0_EN
+                    ExtInt0_Init(0);//外部中断0，参数0为触发方式
+                  #endif
+                #endif
+ 344   1        
+ 345   1        //==========【外部中断1初始化】==========
+ 346   1        #ifdef ExtInt1_EN
+                  #if ExtInt1_EN
+                    ExtInt1_Init(0);//外部中断1，参数0为触发方式
+                  #endif
+                #endif
+ 351   1        
+ 352   1        //==========【外部中断2初始化】==========
+ 353   1        #ifdef ExtInt2_EN
+                  #if ExtInt2_EN
+                    ExtInt2_Init(0);//外部中断2，参数0为触发方式
+                  #endif
+                #endif
+ 358   1        
+ 359   1        //==========【外部中断3初始化】==========
+ 360   1        #ifdef ExtInt3_EN
+                  #if ExtInt3_EN
+                    ExtInt3_Init(0,ExtInt3_SEL);//外部中断3，触发方式、引脚选择
+C51 COMPILER V9.60.0.0   TOUCH_MCU_INIT                                                    09/19/2026 18:56:54 PAGE 7   
+
+                  #endif
+                #endif
+ 365   1        
+ 366   1        //==========【LVD电源电压检测初始化】==========
+ 367   1        #ifdef VolDet_EN
+ 368   1          #if ((VolDet_EN == 1))
+ 369   1            LVDT_Init();//低压检测模块初始化，监控供电电压
+ 370   1          #endif
+ 371   1        #endif
+ 372   1        
+ 373   1        //==========【ADC模数转换初始化】==========
+ 374   1        #ifdef ADC_IS_OPEN
+ 375   1          #if ADC_IS_OPEN
+ 376   1            ADC_Init();//ADC模块初始化
+ 377   1          #endif
+ 378   1        #endif
+ 379   1          
+ 380   1        //==========【IIC从机初始化，调试模式下关闭I2C】==========
+ 381   1        //调试模式时IIC引脚会被调试口占用，所以TRACEMODE开启时跳过IIC从机初始化
+ 382   1        #if (TRACEMODE == FALSE)
+ 383   1          #ifdef IICS_EN
+                    #if IICS_EN
+                      IIC_Slave_Init(0xC0,0);//IIC从机初始化，从机地址0xC0
+                    #endif
+                  #endif
+ 388   1        #endif
+ 389   1        
+ 390   1        //==========【片上运放OP初始化】==========
+ 391   1        #ifdef OP_EN
+                  #if OP_EN 
+                    OP_Init();//内置运算放大器初始化
+                  #endif
+                #endif
+ 396   1        
+ 397   1        //==========【片上EEPROM初始化】==========
+ 398   1        #ifdef EEPROM_EN
+                  #if EEPROM_EN 
+                    Eeprom_Init();//内部EEPROM初始化，用于保存参数
+                  #endif
+                #endif
+ 403   1        
+ 404   1        //==========【CTK电容触摸按键初始化】==========
+ 405   1        #ifdef SNS_NUM
+ 406   1          #if SNS_NUM
+ 407   1            CTK_Init(); //电容触摸按键初始化
+ 408   1          #endif
+ 409   1        #endif
+ 410   1      }
+ 411          
+ 412          //-----------------------------------------------------------------//
+ 413          //函数名称： void MCU_Init(void)
+ 414          //函数功能:   MUC初始化
+ 415          //输入参数： 无
+ 416          //返 回 值： 无
+ 417          //-----------------------------------------------------------------//
+ 418          void MCU_Init(void)
+ 419          {  
+ 420   1        //掉电复位初始化
+ 421   1        Bor_Init();
+ 422   1        
+ 423   1        //看门狗初始化
+ 424   1        WDT_Init();
+C51 COMPILER V9.60.0.0   TOUCH_MCU_INIT                                                    09/19/2026 18:56:54 PAGE 8   
+
+ 425   1      
+ 426   1        //配置核工作时钟
+ 427   1        Set_Sys_Clk();
+ 428   1      
+ 429   1        //配置字对比判断
+ 430   1        CFG_Check();
+ 431   1      
+ 432   1        //IO口默认设置
+ 433   1        Default_Set_IO();
+ 434   1        
+ 435   1        //IO口初始化
+ 436   1        Init_IO();
+ 437   1      
+ 438   1        //功能函数初始化
+ 439   1        Function_Init(); 
+ 440   1        
+ 441   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    304    ----
+   CONSTANT SIZE    =     60    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      1    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

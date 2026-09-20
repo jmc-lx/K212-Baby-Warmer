@@ -1,0 +1,291 @@
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_ADC                                           09/19/2026 18:56:56 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE BF7613BMXX_XXXX_API_ADC
+OBJECT MODULE PLACED IN .\Output\BF7613BMXX_XXXX_API_ADC.obj
+COMPILER INVOKED BY: D:\Keil_51\C51\BIN\C51.EXE Source\BF7613BMXX_XXXX_API_ADC.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\
+                    -Inc;.\User) DEBUG PRINT(.\List\BF7613BMXX_XXXX_API_ADC.lst) TABS(2) OBJECT(.\Output\BF7613BMXX_XXXX_API_ADC.obj)
+
+line level    source
+
+   1          #include "Config.h"
+   2          
+   3          #ifdef ADC_IS_OPEN    
+   4          #if ADC_IS_OPEN
+   5          
+   6            #if (ADC_MODE == 1)//ADC²éÑ¯Ä£Ê½
+   7          
+   8              bit ADC_Start_Flag = 0;
+   9              uint  ADC_Rest_Max_Count = 0;
+  10              uint  ADC_Start_Count = 0;
+  11              void ADC_Unormal_Count(void);
+  12              
+  13              //-----------------------------------------------------------------//
+  14              //º¯ÊýÃû³Æ£º void ADC_Delay_us(unsigned int us)
+  15              //º¯Êý¹¦ÄÜ£º ÑÓÊ±º¯Êý
+  16              //ÊäÈë²ÎÊý£º uint us£º1--2.38us@12MHz;10-11.8us@12MHz;100-106us@12MHz;1000-1.045ms
+  17              //Êä³ö²ÎÊý£º ÎÞ
+  18              //·µ »Ø Öµ£º ÎÞ
+  19              //-----------------------------------------------------------------//
+  20              void ADC_Delay_us(unsigned int us)
+  21              {
+  22   1            for (; us > 0; us--)
+  23   1            { 
+  24   2              WDT_CTRL = 0x07;
+  25   2            }   
+  26   1          }
+  27              
+  28              //-----------------------------------------------------------------//
+  29              //º¯ÊýÃû³Æ£º void ADC_Reset_Count()
+  30              //º¯Êý¹¦ÄÜ£º ADC³¬Ê±¼ÆÊýÆ÷ÀÛ¼Óº¯Êý
+  31              //ÊäÈë²ÎÊý£º ÎÞ
+  32              //Êä³ö²ÎÊý£º ÎÞ
+  33              //·µ »Ø Öµ£º ÎÞ
+  34              //-----------------------------------------------------------------//
+  35              #ifdef Timer0_EN
+  36                #if Timer0_EN
+  37                  #if ADC_IS_OPEN
+  38                    #if ADC_MODE
+  39                    void ADC_Reset_Count(void)
+  40                    {
+  41   1                  if(ADC_Start_Flag == 1)
+  42   1                  {
+  43   2                    ADC_Start_Count++;
+  44   2                    if(ADC_Start_Count >= ADC_Rest_Max_Count)
+  45   2                    {
+  46   3                      SOFT_RST = 0x55;  
+  47   3                      ADC_Start_Count = 0;
+  48   3                      ADC_Start_Flag = 0;
+  49   3                    }
+  50   2                  }
+  51   1                }
+  52                    #endif
+  53                  #endif
+  54                #endif
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_ADC                                           09/19/2026 18:56:56 PAGE 2   
+
+  55              #endif    
+  56                  
+  57            #endif
+  58          #endif
+  59            
+  60          
+  61            #if ADC_IS_OPEN
+  62          
+  63          
+  64            bit ADC_Done = 0;
+  65            uchar ADC_Index = 0;
+  66            uchar ADC_Index_Start = 0;
+  67          
+  68            bit adc_scan_done = 0;
+  69            uchar xdata ADC_Access_Index[ADC_NUM] = {0};
+  70            uint xdata adc_data[ADC_NUM] = {0};
+  71            
+  72            //-----------------------------------------------------------------//
+  73            //º¯ÊýÃû³Æ£º void ADC_Find_Next(void)
+  74            //º¯Êý¹¦ÄÜ£º ADCÍ¨µÀ²éÕÒ
+  75            //ÊäÈë²ÎÊý£º ÎÞ
+  76            //Êä³ö²ÎÊý£º ÎÞ
+  77            //·µ »Ø Öµ£º ÎÞ
+  78            //-----------------------------------------------------------------//
+  79            #if (ADC_MODE == 0) 
+                void  ADC_Find_Next(void)
+                {
+                  while(1)
+                  {
+                    ADC_Index++;  
+                    
+                    if(ADC_Index >= ADC_NUM)
+                    {
+                        ADC_Index = ADC_Index_Start;
+                        adc_scan_done = 1;
+                    }
+                    if((ADC_Access_Index[ADC_Index]&0x80))//Èç¹ûÏÂÒ»¸öÊÇADCÍ¨µÀ£¬¿ªÆôÖÐADC
+                    {
+                      ADC_ADDR_SET((ADC_Access_Index[ADC_Index]&0x7F));
+                      ADC_SCAN_EN;//¿ªÆôADCÉ¨Ãè
+                      break;
+                    }
+                    else
+                    {
+                    
+                    }
+                  }       
+                }
+                #endif
+ 104            
+ 105            
+ 106            //-----------------------------------------------------------------//
+ 107            //º¯ÊýÃû³Æ£º uint Get_ADC(uchar adc_ch)
+ 108            //º¯Êý¹¦ÄÜ£º ²éÑ¯Ä£Ê½ÏÂ»ñÈ¡ADC adc_chµÄÊý¾Ý£»
+ 109            //ÊäÈë²ÎÊý£º uchar adc_ch:ADCÍ¨µÀ
+ 110            //Êä³ö²ÎÊý£º uint£º·µ»ØADCÊý¾Ý
+ 111            //·µ »Ø Öµ£º ÎÞ
+ 112            //-----------------------------------------------------------------// 
+ 113            #if (ADC_MODE == 1)   
+ 114            uint Get_ADC(uchar adc_ch)
+ 115            {
+ 116   1          ADC_IE_CLR;//¹Ø±ÕADCÖÐ¶ÏÊ¹ÄÜ
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_ADC                                           09/19/2026 18:56:56 PAGE 3   
+
+ 117   1        
+ 118   1          if(OPENADC & (((ulong)(0x01))<< (adc_ch)))
+ 119   1          {
+ 120   2            ADC_ADDR_SET(adc_ch);
+ 121   2          }
+ 122   1          else
+ 123   1          {
+ 124   2            return 0;
+ 125   2          }
+ 126   1          
+ 127   1          ADC_PD(0);//¿ªÆôADCÄ£¿é
+ 128   1          ADC_Delay_us(20);
+ 129   1          ADC_SCAN_EN;//¿ªÆôADCÉ¨Ãè
+ 130   1          
+ 131   1          ADC_Start_Flag = 1;
+ 132   1          while(!(IRCON1&0x10));
+ 133   1          ADC_Start_Count = 0;
+ 134   1          ADC_Start_Flag = 0;
+ 135   1          
+ 136   1          ADC_INT_FLAG_CLR;
+ 137   1          ADC_PD(1);//¹Ø±ÕADCÄ£¿é
+ 138   1          
+ 139   1          return ((uint)(ADC_RDATAH&0x0F) << 8) | (uint)ADC_RDATAL;
+ 140   1        }
+ 141            #endif  
+ 142            //-----------------------------------------------------------------//
+ 143            //º¯ÊýÃû³Æ£º void ADC_Init(void)
+ 144            //º¯Êý¹¦ÄÜ£º ADC³õÊ¼»¯,ÔÚSetAccessIndexes()Ö®ºó³õÊ¼»¯;
+ 145            //ÊäÈë²ÎÊý£º ÎÞ
+ 146            //Êä³ö²ÎÊý£º ÎÞ
+ 147            //·µ »Ø Öµ£º ÎÞ
+ 148            //-----------------------------------------------------------------//        
+ 149            void ADC_Init(void)
+ 150            {
+ 151   1          #if (ADC_MODE == 0)
+                  uchar i = 0;
+                  uchar j = 0;
+                  #endif
+ 155   1          
+ 156   1          EA = 0;//¹Ø×ÜÖÐ¶Ï£»
+ 157   1          ADC_IP_SET;//ÉèÖÃADCÖÐ¶ÏÓÅ¼¶Îª¸ß£¬¸ù¾ÝÊµ¼ÊÓ¦ÔËÉèÖÃÓÅÏÈ¼¶
+ 158   1          ADC_INT_FLAG_CLR;//Çå³ýADCÖÐ¶Ï±êÖ¾Î»
+ 159   1          ADC_IO_CGF(OPENADC);//ADCÓëIO¹¦ÄÜÑ¡Ôñ£¬¶ÔÓ¦µÄÎ»Îª1ÎªADC¹¦ÄÜ£¬0ÎªIO¹¦ÄÜ
+ 160   1        
+ 161   1          ADC_SAMP_SET(ADC_SAMPT);//ADC²ÉÑùÊ±¼äÉèÖÃbit[7:0],(0~255)²ÉÑùÊ±¼äÎª(ADC_SPT+1)*4*T_adc_clk
+ 162   1          ADC_WNUM_SET(ADC_WNUM);//×ª»»Íê±Ï¾àÀë×ª»»Ê±¼äÑ¡Ôñ2~31£¬bit[7:3],(X+3)*T_adc_clk,ÐèÒª(X+3)*T_adc_clk > 4*
+             -T_ADC_ANCK 
+ 163   1          ADC_SAMPBG_SET(ADC_SAMBG);//²ÉÑùÊ±ÐòÓë±È½ÏÊ±Ðò¼ä¸ôÑ¡Ôñ£¬0Îª¼ä¸ô0£¬1Îª¼ä¸ô1(ADC_CLK)
+ 164   1          ADC_SAMPDEL_SET(ADC_SAMDEL);//²ÉÑùÑÓÊ±Ñ¡Ôñ£¬0Îª¼ä¸ô0(ADC_CLK)£¬1Îª2(ADC_CLK)£¬2Îª4(ADC_CLK)£¬3Îª8(ADC_CL
+             -K)
+ 165   1          ADC_FILTER_SET(ADC_FILTER);//ÊäÈëÐÅºÅÂË²¨Ñ¡Ôñ£¬0Îª²»¼ÓRCÂË²¨£¬1Îª¼ÓRCÂË²¨
+ 166   1          ADC30_VIN_SET(ADC30_VIN);//ADC30ÄÚ²¿ÊäÈëµçÑ¹Ñ¡Ôñ£¬0:Îª1.326V,1Îª2.253V£¬2Îª3.111V,3Îª4.082V
+ 167   1          ADC_I_SET(ADC_OFFSETI);//ADCÆ«ÖÃµçÁ÷´óÐ¡Ñ¡Ôñ£¬ADC_OFFSETI[1:0]£»ADC_OFFSETI[0]±È½ÏÆ÷Æ«ÖÃµçÁ÷´óÐ¡:0Îª4uA£
+             -¬1Îª5uA£»ADC_OFFSETI[1]ÔË·ÅÆ«ÖÃµçÁ÷´óÐ¡:0Îª4uA£¬1Îª5uA£»
+ 168   1          ADC_CTRL_SET(ADC_CTRL);//ADC±È½ÏÆ÷Ê§µ÷Ïû³ýÑ¡Ôñ£¬0/1ÎªÏÈÊ§µ÷Ïû³ýºó²ÉÑù£¬2/3ÎªÊ§µ÷Ïû³ýºÍ²ÉÑùÍ¬Ê±½øÐÐ£¬2Îªµ
+             -ÚÒ»¼¶±È½ÏÆ÷µÄ¿ª¹Ø×îºó¶Ï¿ª£¬3ËùÓÐ¿ª¹ØÍ¬Ê±¶Ï¿ª£¬Ä¬ÈÏÎª2
+ 169   1          
+ 170   1          ADC_ANCK_SET(ADC_ANCK);//Ä£ÄâÊäÈëÐÅºÅÊ±ÖÓ·ÖÆµÑ¡Ôñ£¬bit[3:2],(0~3)-(12MHz,8MhHz,4MHz,2MHz)
+ 171   1          ADC_DCLK_SET(ADC_DCLK);//ADC·ÖÆµÑ¡Ôñ£¬bit[1:0],(0~3)-(8MHz,6MhHz,4MHz,3MHz)
+ 172   1          ADC_VREF_VOL_SEL(ADC_VREF_VOL);//ADC²Î¿¼µçÑ¹Ñ¡Ôñ£¬1Îª4V£¬0Îª±£Áô£¬Ê¹ÓÃÊ±¶ÁÈ¡Ð¾Æ¬Ð£×¼Öµ£¬µ±ADC²Î¿¼µçÑ¹Ñ¡Ô
+             -ñÎª4VÊ±£¬½¨ÒéADC_DCLKÑ¡ÔñÎª3MHz
+ 173   1          
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_ADC                                           09/19/2026 18:56:56 PAGE 4   
+
+ 174   1          ADC_VREF_SEL(ADC_VREF);//ADC²Î¿¼µçÑ¹Ñ¡Ôñ£¬1Îª4V£¬0ÎªVCC
+ 175   1      
+ 176   1          
+ 177   1          #if (ADC_MODE == 0)
+                  ADC_PD(0);//¿ªÆôADCÄ£¿é
+                  for(j = 0; j < ADC_NUM; j++)
+                  {
+                    for (i = ADC_Index_Start; i < 32; i++) 
+                    {
+                      if(OPENADC & (((ulong)(0x01))<< (i)))
+                      {
+                        ADC_Index_Start = i+1;
+                        ADC_Access_Index[j] = (i)|0x80;
+                        break;
+                      }
+                    }
+                  }
+                    
+                  for(ADC_Index_Start = 0;ADC_Index_Start < ADC_NUM;ADC_Index_Start++)//²éÕÒµÚÒ»¸öADCÍ¨µÀ
+                  {
+                    if(ADC_Access_Index[ADC_Index_Start] & 0x80)
+                    {
+                      ADC_Index = ADC_Index_Start;
+                      break;
+                    }
+                  }
+                  
+                  ADC_ADDR_SET((ADC_Access_Index[ADC_Index]&0x7F));
+                  
+                  ADC_SCAN_EN;//¿ªÆôADCÉ¨Ãè
+                  
+                  ADC_IE_SET;//¿ªÆôADCÖÐ¶ÏÊ¹ÄÜ
+                  #endif
+ 207   1          
+ 208   1          #if (ADC_MODE == 1)
+ 209   1            ADC_SCAN_CLR;//¹Ø±ÕADCÉ¨Ãè
+ 210   1            ADC_IE_CLR;//¹Ø±ÕADCÖÐ¶ÏÊ¹ÄÜ
+ 211   1          #endif
+ 212   1          
+ 213   1          EA = 1;//¿ª×ÜÖÐ¶Ï
+ 214   1            
+ 215   1           
+ 216   1        }
+ 217            
+ 218            //-----------------------------------------------------------------//
+ 219            //º¯ÊýÃû³Æ£º void  ADC_ISR interrupt 11
+ 220            //º¯Êý¹¦ÄÜ£º ADCÖÐ¶Ï×Óº¯Êý
+ 221            //ÊäÈë²ÎÊý£º ÎÞ
+ 222            //Êä³ö²ÎÊý£º ÎÞ
+ 223            //·µ »Ø Öµ£º ÎÞ
+ 224            //-----------------------------------------------------------------//
+ 225          
+ 226            void  ADC_ISR() interrupt 11
+ 227            {
+ 228   1          static uchar xdata addr_bak = 0;
+ 229   1          PUSH_REG_ADDR_SFR();
+ 230   1          ADC_INT_FLAG_CLR;//Çå³ýADCÖÐ¶Ï±êÖ¾Î»
+ 231   1          ADC_SCAN_CLR;//¹Ø±ÕADCÉ¨Ãè
+ 232   1          
+ 233   1          #if (ADC_MODE == 0)
+                
+                    EA = 0;
+C51 COMPILER V9.60.0.0   BF7613BMXX_XXXX_API_ADC                                           09/19/2026 18:56:56 PAGE 5   
+
+                    adc_data[ADC_Index] = ((uint)(ADC_RDATAH&0x0F) << 8) | (uint)ADC_RDATAL;//»ñÈ¡ADCÊý¾Ý 
+                    EA = 1;
+                  
+                    ADC_Find_Next();//²éÕÒÏÂÒ»¸ö¿ªÆôµÄADC
+                
+                  #else
+ 242   1            ADC_IE_CLR;//¹Ø±ÕADCÖÐ¶ÏÊ¹ÄÜ
+ 243   1            ADC_SCAN_CLR;//¹Ø±ÕADCÉ¨Ãè  
+ 244   1          #endif
+ 245   1          POP_REG_ADDR_SFR();
+ 246   1          
+ 247   1        }
+ 248          #endif
+ 249          #endif
+ 250          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    281    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      7    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      6    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      3    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
